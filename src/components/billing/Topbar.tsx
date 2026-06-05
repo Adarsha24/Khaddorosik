@@ -25,8 +25,8 @@ export default function Topbar() {
 
       {/* Outlet */}
       <div className="text-[13px] text-white/70 font-medium">
-        <strong className="text-white font-semibold">Spice Garden Fine Dine</strong>
-        &nbsp;•&nbsp;Koramangala, Bengaluru
+        <strong className="text-white font-semibold">Arsalan Biriyani</strong>
+        &nbsp;•&nbsp;Kolkata, West Bengal
       </div>
 
       <div className="flex-1" />

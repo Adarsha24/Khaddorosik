@@ -24,14 +24,12 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
 
   const visible = useMemo(() => {
     let items = MENU_ITEMS;
-    if (search.trim()) {
-      items = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-    }
+    if (search.trim()) items = items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
     if (activeCat !== 'all') items = items.filter((i) => i.cat === activeCat);
-    if (filter === 'veg')   items = items.filter((i) => i.veg);
-    if (filter === 'nv')    items = items.filter((i) => !i.veg);
-    if (filter === 'best')  items = items.filter((i) => i.best);
-    if (filter === 'avail') items = items.filter((i) => i.avail);
+    if (filter === 'veg')    items = items.filter((i) => i.veg);
+    if (filter === 'nv')     items = items.filter((i) => !i.veg);
+    if (filter === 'best')   items = items.filter((i) => i.best);
+    if (filter === 'avail')  items = items.filter((i) => i.avail);
     return items;
   }, [search, activeCat, filter]);
 
@@ -76,7 +74,7 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
             placeholder="Search dishes…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 border border-[#e2e6ec] rounded-lg pl-8 pr-2.5 text-[12px] outline-none bg-[#f7f8fb] font-[DM_Sans] focus:border-[#e85c26] focus:bg-white transition-all"
+            className="w-full h-8 border border-[#e2e6ec] rounded-lg pl-8 pr-2.5 text-[12px] outline-none bg-[#f7f8fb] focus:border-[#e85c26] focus:bg-white transition-all"
           />
         </div>
 
@@ -110,8 +108,10 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
       </div>
 
       {/* Items grid */}
-      <div className="flex-1 overflow-y-auto p-3 grid gap-2.5 content-start"
-        style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(136px,1fr))' }}>
+      <div
+        className="flex-1 overflow-y-auto p-3 grid gap-2.5 content-start"
+        style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(136px,1fr))' }}
+      >
         {visible.map((item) => {
           const qty = cartMap[item.id] || 0;
           return (
@@ -122,12 +122,28 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
                 ${!item.avail ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[1px] hover:shadow-[0_4px_12px_rgba(232,92,38,0.12)]'}
                 ${qty > 0 ? 'border-[#27ae60]' : 'border-[#e2e6ec] hover:border-[#e85c26]'}`}
             >
-              {/* Thumb */}
-              <div className="h-[82px] bg-[#f0f2f5] flex items-center justify-center text-[30px] relative overflow-hidden">
-                {item.emoji}
+              {/* ── IMAGE THUMB ── */}
+              <div className="h-[82px] relative overflow-hidden bg-[#f0f2f5]">
+                <img
+                  src={item.img}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+                {/* Emoji fallback — hidden by default */}
+                <div
+                  className="absolute inset-0 items-center justify-center text-[30px]"
+                  style={{ display: 'none' }}
+                >
+                  {item.emoji}
+                </div>
 
-                {/* Veg/NonVeg flag */}
-                <span className={`absolute top-[6px] right-[6px] w-[14px] h-[14px] rounded-[3px] border-2 flex items-center justify-center
+                {/* Veg / Non-Veg dot */}
+                <span className={`absolute top-[6px] right-[6px] w-[14px] h-[14px] rounded-[3px] border-2 bg-white flex items-center justify-center
                   ${item.veg ? 'border-[#2e7d32]' : 'border-[#b71c1c]'}`}>
                   <span className={`w-[7px] h-[7px] rounded-full ${item.veg ? 'bg-[#2e7d32]' : 'bg-[#b71c1c]'}`} />
                 </span>
@@ -140,7 +156,7 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
                 )}
 
                 {/* Availability dot */}
-                <span className={`absolute bottom-[6px] left-[6px] w-2 h-2 rounded-full ${item.avail ? 'bg-[#27ae60]' : 'bg-[#e53e3e]'}`} />
+                <span className={`absolute bottom-[6px] left-[6px] w-2 h-2 rounded-full border border-white ${item.avail ? 'bg-[#27ae60]' : 'bg-[#e53e3e]'}`} />
               </div>
 
               {/* Body */}

@@ -32,8 +32,8 @@ export default function Topbar() {
 
       {/* Outlet name */}
       <div className="text-[13px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
-        <strong className="font-semibold text-white">Spice Garden Fine Dine</strong>
-        &nbsp;•&nbsp;Koramangala, Bengaluru
+        <strong className="font-semibold text-white">Arsalan Biriyani</strong>
+        &nbsp;•&nbsp;Kolkata, West Bengal
       </div>
 
       <div className="flex-1" />
