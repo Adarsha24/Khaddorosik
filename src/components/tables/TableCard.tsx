@@ -9,9 +9,9 @@ interface Props {
 }
 
 const STATUS_STYLES: Record<string, { border: string; bg: string; badgeBg: string; badgeCol: string }> = {
-  available: { border: '#c3e6cb',        bg: 'var(--green-bg)',   badgeBg: 'var(--green-bg)',     badgeCol: 'var(--green)'   },
-  occupied:  { border: '#f59e0b',        bg: '#fffdf7',           badgeBg: '#fff8e1',             badgeCol: '#d4900a'        },
-  running:   { border: 'var(--primary)', bg: '#fff8f5',           badgeBg: 'var(--primary-light)', badgeCol: 'var(--primary)' },
+  available: { border: '#b9dec7',        bg: 'var(--green-bg)',   badgeBg: 'var(--green-bg)',     badgeCol: 'var(--green)'   },
+  occupied:  { border: '#c88716',        bg: '#fffaf0',           badgeBg: 'var(--amber-bg)',      badgeCol: 'var(--amber)'   },
+  running:   { border: 'var(--primary)', bg: 'var(--primary-light)', badgeBg: 'var(--primary-light)', badgeCol: 'var(--primary)' },
   reserved:  { border: 'var(--blue)',    bg: 'var(--blue-bg)',    badgeBg: 'var(--blue-bg)',      badgeCol: 'var(--blue)'    },
 };
 

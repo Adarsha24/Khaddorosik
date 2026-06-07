@@ -21,7 +21,7 @@ export default function KitchenScreen() {
 
   const handleMarkReady = useCallback((id: number) => {
     setLiveOrders(prev =>
-      prev.map(o => o.id === id ? { ...o, status: 'ready' as KotStatus, color: '#27ae60' } : o)
+      prev.map(o => o.id === id ? { ...o, status: 'ready' as KotStatus, color: '#1f9d65' } : o)
     );
     showToast('Order marked as Ready ✓', 'success');
   }, [showToast]);

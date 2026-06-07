@@ -221,7 +221,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                         </span>
                         <span
                           className="flex-1 font-medium"
-                          style={{ color: "#1e2433" }}
+                          style={{ color: "#20302d" }}
                         >
                           {item.n}
                         </span>
@@ -384,7 +384,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       ? {
                           background: "var(--primary-light)",
                           color: "var(--primary)",
-                          border: "1px solid #f4b8a4",
+                          border: "1px solid #efb29f",
                         }
                       : {
                           background: "var(--surface)",
@@ -532,7 +532,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                         <div
                           className="absolute top-1.5 left-0 text-white text-[8px] font-bold px-1.5 py-0.5"
                           style={{
-                            background: "#f59e0b",
+                            background: "#c88716",
                             borderRadius: "0 4px 4px 0",
                           }}
                         >
@@ -725,7 +725,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                 <div
                   key={item.id}
                   className="flex items-center gap-2 px-3.5 py-[7px]"
-                  style={{ borderBottom: "1px solid #f5f7fa" }}
+                  style={{ borderBottom: "1px solid #eef4ef" }}
                 >
                   <div
                     className="w-[7px] h-[7px] rounded-full flex-shrink-0"
@@ -794,8 +794,8 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                   {
                     label: "Dal Makhani ×1",
                     status: "Prep",
-                    bg: "#fff8e1",
-                    col: "#f59e0b",
+                    bg: "#fff4dc",
+                    col: "#c88716",
                   },
                 ].map((k) => (
                   <div
@@ -907,7 +907,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                 onClick={onClick}
                 className="py-2 rounded-lg text-[11.5px] font-semibold flex flex-col items-center gap-0.5 cursor-pointer transition-all"
                 style={{
-                  border: `1px solid ${green ? "#aed6bc" : "var(--border)"}`,
+                  border: `1px solid ${green ? "#a9d9bd" : "var(--border)"}`,
                   background: "var(--surface)",
                   color: green ? "var(--green)" : "var(--text2)",
                 }}

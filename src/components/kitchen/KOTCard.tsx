@@ -26,8 +26,8 @@ export default function KotCard({ order, onMarkReady, onMarkServed, onReprint }:
   };
 
   const headerBg =
-    order.status === 'ready'  ? '#27ae60' :
-    order.status === 'served' ? '#8a95a8' : '#1e2433';
+    order.status === 'ready'  ? '#1f9d65' :
+    order.status === 'served' ? '#80908a' : '#20302d';
 
   const timeBg = getTimeBg(order.time, order.status);
   const allDone = items.every(i => i.done);

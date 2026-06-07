@@ -22,9 +22,9 @@ export default function HourlyChart() {
               className="w-full rounded-t-[3px] transition-opacity"
               style={{
                 height:    `${barH}px`,
-                background: '#e85c26',
+                background: 'var(--primary)',
                 opacity:    isNow ? 1 : 0.55,
-                boxShadow:  isNow ? '0 2px 6px rgba(232,92,38,0.45)' : 'none',
+                boxShadow:  isNow ? '0 2px 6px rgba(217,87,43,0.38)' : 'none',
               }}
             />
             <span className={`text-[8.5px] font-medium leading-none ${isNow ? 'text-[#e85c26] font-bold' : 'text-[#8a95a8]'}`}>

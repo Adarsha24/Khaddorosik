@@ -10,11 +10,11 @@ export const TOP_ITEMS = [
 ];
 
 export const CATEGORY_PIE = [
-  { name: 'Main Course', pct: 35, amt: '₹15,000', color: '#e85c26' },
-  { name: 'Biryani',     pct: 20, amt: '₹8,568',  color: '#2d6be4' },
-  { name: 'Starters',    pct: 15, amt: '₹6,426',  color: '#27ae60' },
-  { name: 'Beverages',   pct: 15, amt: '₹6,426',  color: '#f59e0b' },
-  { name: 'Desserts',    pct: 15, amt: '₹6,420',  color: '#7c3aed' },
+  { name: 'Main Course', pct: 35, amt: '₹15,000', color: '#d9572b' },
+  { name: 'Biryani',     pct: 20, amt: '₹8,568',  color: '#2f6f73' },
+  { name: 'Starters',    pct: 15, amt: '₹6,426',  color: '#1f9d65' },
+  { name: 'Beverages',   pct: 15, amt: '₹6,426',  color: '#c88716' },
+  { name: 'Desserts',    pct: 15, amt: '₹6,420',  color: '#7957c2' },
 ];
 
 export const STAT_CARDS = [

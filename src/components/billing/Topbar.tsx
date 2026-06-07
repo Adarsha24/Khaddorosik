@@ -17,10 +17,10 @@ export default function Topbar() {
   }, []);
 
   return (
-    <header className="h-[52px] bg-[#1e2433] flex items-center px-0 gap-0 shrink-0 z-50">
+    <header className="h-[52px] bg-[#20302d] flex items-center px-0 gap-0 shrink-0 z-50">
       {/* Logo */}
       <div className="text-[20px] font-bold text-white tracking-tight px-4 border-r border-white/10 mr-4">
-        pet<span className="text-[#e85c26]">pooja</span>
+        pet<span className="text-[#d9572b]">pooja</span>
       </div>
 
       {/* Outlet */}
@@ -44,7 +44,7 @@ export default function Topbar() {
             onClick={() => setMode(m)}
             className={`px-3 py-1 rounded-full text-[11px] font-semibold border cursor-pointer transition-all ${
               mode === m
-                ? 'bg-[#e85c26] text-white border-[#e85c26]'
+                ? 'bg-[#d9572b] text-white border-[#d9572b]'
                 : 'border-white/20 text-white/60 hover:text-white/90'
             }`}
           >
@@ -68,11 +68,11 @@ export default function Topbar() {
           >
             <span className="text-sm">{icon}</span>
             {dot && (
-              <span className="absolute top-1.5 right-1.5 w-[7px] h-[7px] rounded-full bg-[#f59e0b] border-[1.5px] border-[#1e2433]" />
+              <span className="absolute top-1.5 right-1.5 w-[7px] h-[7px] rounded-full bg-[#c88716] border-[1.5px] border-[#20302d]" />
             )}
           </button>
         ))}
-        <div className="w-[34px] h-[34px] rounded-full bg-[#e85c26] flex items-center justify-center text-white font-bold text-[13px] cursor-pointer border-2 border-white/25">
+        <div className="w-[34px] h-[34px] rounded-full bg-[#d9572b] flex items-center justify-center text-white font-bold text-[13px] cursor-pointer border-2 border-white/25">
           AK
         </div>
       </div>

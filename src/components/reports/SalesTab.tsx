@@ -26,7 +26,7 @@ export default function SalesTab() {
                   className="w-full rounded-t-[4px] transition-all"
                   style={{
                     height:    `${h}px`,
-                    background: isToday ? '#e85c26' : '#1e2433',
+                    background: isToday ? 'var(--primary)' : 'var(--dark)',
                     opacity:    isToday ? 1 : 0.55,
                   }}
                 />

@@ -1,5 +1,93 @@
 @import "tailwindcss";
 
+:root {
+  --primary: #d9572b;
+  --primary-dark: #b94422;
+  --primary-light: #fff0e8;
+  --dark: #1f3d3a;
+  --dark2: #284a45;
+  --surface: #ffffff;
+  --surface2: #f7f9f5;
+  --surface3: #eef4ef;
+  --border: #dce6df;
+  --border2: #bfd0c7;
+  --text1: #20302d;
+  --text2: #4b5b56;
+  --text3: #80908a;
+  --green: #1f9d65;
+  --green-bg: #e8f7ef;
+  --blue: #2f6f73;
+  --blue-bg: #e7f2f2;
+  --purple: #7957c2;
+  --purple-bg: #f1ecfb;
+  --amber: #c88716;
+  --amber-bg: #fff4dc;
+  --red: #d64545;
+  --red-bg: #fdecec;
+}
+
+@layer utilities {
+  .bg-\[\#e85c26\] { background-color: #d9572b !important; }
+  .bg-\[\#c94d1d\] { background-color: #b94422 !important; }
+  .bg-\[\#fff3ee\],
+  .bg-\[\#fff8f5\] { background-color: #fff0e8 !important; }
+  .bg-\[\#1e2433\] { background-color: #20302d !important; }
+  .bg-\[\#2d3548\] { background-color: #284a45 !important; }
+  .bg-\[\#f0f2f5\] { background-color: #eef4ef !important; }
+  .bg-\[\#f7f8fb\] { background-color: #f7f9f5 !important; }
+  .bg-\[\#f5f7fa\] { background-color: #eef4ef !important; }
+  .bg-\[\#e2e6ec\] { background-color: #dce6df !important; }
+  .bg-\[\#2d6be4\] { background-color: #2f6f73 !important; }
+  .bg-\[\#eef3fd\] { background-color: #e7f2f2 !important; }
+  .bg-\[\#27ae60\] { background-color: #1f9d65 !important; }
+  .bg-\[\#eafaf1\] { background-color: #e8f7ef !important; }
+  .bg-\[\#f59e0b\] { background-color: #c88716 !important; }
+  .bg-\[\#fff8e1\],
+  .bg-\[\#fff4e6\] { background-color: #fff4dc !important; }
+  .bg-\[\#7c3aed\] { background-color: #7957c2 !important; }
+  .bg-\[\#f5f3ff\] { background-color: #f1ecfb !important; }
+  .bg-\[\#e53e3e\] { background-color: #d64545 !important; }
+  .bg-\[\#fdecea\] { background-color: #fdecec !important; }
+
+  .text-\[\#e85c26\] { color: #d9572b !important; }
+  .text-\[\#1e2433\] { color: #20302d !important; }
+  .text-\[\#8a95a8\] { color: #80908a !important; }
+  .text-\[\#4a5568\] { color: #4b5b56 !important; }
+  .text-\[\#2d6be4\] { color: #2f6f73 !important; }
+  .text-\[\#27ae60\] { color: #1f9d65 !important; }
+  .text-\[\#f59e0b\],
+  .text-\[\#d4900a\],
+  .text-\[\#e67e22\] { color: #c88716 !important; }
+  .text-\[\#7c3aed\] { color: #7957c2 !important; }
+  .text-\[\#e53e3e\] { color: #d64545 !important; }
+
+  .border-\[\#e85c26\] { border-color: #d9572b !important; }
+  .border-\[\#1e2433\] { border-color: #20302d !important; }
+  .border-\[\#e2e6ec\] { border-color: #dce6df !important; }
+  .border-\[\#f5f7fa\] { border-color: #eef4ef !important; }
+  .border-\[\#27ae60\] { border-color: #1f9d65 !important; }
+  .border-\[\#fca5a5\] { border-color: #ef9f9f !important; }
+  .border-\[\#fdecea\] { border-color: #fdecec !important; }
+  .border-\[\#c3e6cb\] { border-color: #b9dec7 !important; }
+  .border-\[\#aed6bc\] { border-color: #a9d9bd !important; }
+  .border-\[\#d0d5de\] { border-color: #bfd0c7 !important; }
+
+  .hover\:bg-\[\#c94d1d\]:hover { background-color: #b94422 !important; }
+  .hover\:bg-\[\#f7f8fb\]:hover { background-color: #f7f9f5 !important; }
+  .hover\:bg-\[\#e2e6ec\]:hover { background-color: #dce6df !important; }
+  .hover\:bg-\[\#219150\]:hover { background-color: #187a50 !important; }
+  .hover\:bg-\[\#eafaf1\]:hover { background-color: #e8f7ef !important; }
+  .hover\:bg-\[\#fbd0cc\]:hover { background-color: #fad5d5 !important; }
+  .hover\:border-\[\#27ae60\]:hover { border-color: #1f9d65 !important; }
+  .hover\:border-\[\#e85c26\]:hover { border-color: #d9572b !important; }
+  .hover\:border-\[\#fca5a5\]:hover { border-color: #ef9f9f !important; }
+  .hover\:border-\[\#c8cdd8\]:hover { border-color: #bfd0c7 !important; }
+  .hover\:text-\[\#1e2433\]:hover { color: #20302d !important; }
+  .hover\:text-\[\#e85c26\]:hover { color: #d9572b !important; }
+  .hover\:text-\[\#e53e3e\]:hover { color: #d64545 !important; }
+  .focus\:border-\[\#e85c26\]:focus { border-color: #d9572b !important; }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -22,6 +110,6 @@ html, body {
   width: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #e2e6ec;
+  background: var(--border);
   border-radius: 4px;
 }

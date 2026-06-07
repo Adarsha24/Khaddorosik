@@ -143,7 +143,7 @@ export default function PaymentModal({ cart, onClose, onConfirm }: Props) {
                 className="px-3 py-1.5 rounded-full border text-[11px] font-semibold cursor-pointer transition-all"
                 style={
                   tip === t
-                    ? { background: 'var(--green-bg)', color: 'var(--green)', borderColor: '#aed6bc' }
+                    ? { background: 'var(--green-bg)', color: 'var(--green)', borderColor: '#a9d9bd' }
                     : { background: 'var(--surface2)', color: 'var(--text2)', borderColor: 'var(--border)' }
                 }
               >
@@ -156,7 +156,7 @@ export default function PaymentModal({ cart, onClose, onConfirm }: Props) {
             onClick={onConfirm}
             className="w-full py-3.5 rounded-xl text-[15px] font-bold text-white flex items-center justify-center gap-2 cursor-pointer transition-all"
             style={{ background: 'var(--green)', border: 'none' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#219150'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#187a50'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--green)'; }}
           >
             ✓ Confirm Payment • ₹{grand.toLocaleString('en-IN')}

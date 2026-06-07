@@ -54,7 +54,7 @@ export default function TableDetailSidebar({ table, toast, onNavigate }: Props) 
       <div className="flex-1 overflow-y-auto">
         {DETAIL_ITEMS.map((item) => (
           <div key={item.name} className="flex items-center gap-2 px-3.5 py-1.5 text-[12px]"
-            style={{ borderBottom: '1px solid #f5f7fa' }}>
+            style={{ borderBottom: '1px solid var(--surface3)' }}>
             <span className="flex-1 font-medium" style={{ color: 'var(--text1)' }}>{item.name}</span>
             <span style={{ color: 'var(--text3)' }}>×{item.qty}</span>
             <span className="font-semibold">₹{item.price}</span>

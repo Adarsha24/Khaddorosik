@@ -38,8 +38,8 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
       onClick={() => setFilter(id)}
       className={`px-3 py-[5px] rounded-full text-[11px] font-semibold cursor-pointer border whitespace-nowrap flex items-center gap-1 transition-all
         ${filter === id
-          ? 'bg-[#fff3ee] text-[#e85c26] border-[#f4b8a4]'
-          : 'border-[#e2e6ec] bg-white text-[#4a5568] hover:border-[#c8cdd8]'}`}
+          ? 'bg-[#fff0e8] text-[#d9572b] border-[#efb29f]'
+          : 'border-[#dce6df] bg-white text-[#4b5b56] hover:border-[#bfd0c7]'}`}
     >
       {icon}{label}
     </button>
@@ -48,33 +48,33 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Tabs */}
-      <div className="flex px-4 bg-white border-b border-[#e2e6ec] shrink-0">
+      <div className="flex px-4 bg-white border-b border-[#dce6df] shrink-0">
         {['New Order', 'Running KOT', 'Order History', 'Parcel'].map((t, i) => (
           <div
             key={t}
             className={`px-[18px] py-[11px] text-[13px] font-medium cursor-pointer border-b-[2.5px] -mb-px whitespace-nowrap transition-all
               ${i === 0
-                ? 'text-[#e85c26] border-[#e85c26] font-semibold'
-                : 'text-[#8a95a8] border-transparent hover:text-[#1e2433]'}`}
+                ? 'text-[#d9572b] border-[#d9572b] font-semibold'
+                : 'text-[#80908a] border-transparent hover:text-[#20302d]'}`}
           >
             {t}
             {t === 'Running KOT' && (
-              <span className={`ml-1 px-1.5 py-[1px] rounded-full text-[10px] font-semibold ${i === 0 ? 'bg-[#fff3ee] text-[#e85c26]' : 'bg-[#f0f2f5] text-[#8a95a8]'}`}>4</span>
+              <span className={`ml-1 px-1.5 py-[1px] rounded-full text-[10px] font-semibold ${i === 0 ? 'bg-[#fff0e8] text-[#d9572b]' : 'bg-[#eef4ef] text-[#80908a]'}`}>4</span>
             )}
           </div>
         ))}
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white px-3.5 py-2.5 flex gap-2 items-center border-b border-[#e2e6ec] shrink-0">
+      <div className="bg-white px-3.5 py-2.5 flex gap-2 items-center border-b border-[#dce6df] shrink-0">
         <div className="relative flex-1 max-w-[280px]">
-          <span className="absolute left-[9px] top-1/2 -translate-y-1/2 text-[#8a95a8] text-[15px]">🔍</span>
+          <span className="absolute left-[9px] top-1/2 -translate-y-1/2 text-[#80908a] text-[15px]">🔍</span>
           <input
             type="text"
             placeholder="Search dishes…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-8 border border-[#e2e6ec] rounded-lg pl-8 pr-2.5 text-[12px] outline-none bg-[#f7f8fb] focus:border-[#e85c26] focus:bg-white transition-all"
+            className="w-full h-8 border border-[#dce6df] rounded-lg pl-8 pr-2.5 text-[12px] outline-none bg-[#f7f9f5] focus:border-[#d9572b] focus:bg-white transition-all"
           />
         </div>
 
@@ -85,21 +85,21 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
         <FilterChip id="avail" label="✓ In Stock" />
 
         <div className="flex-1" />
-        <button className="px-3 py-[5px] rounded-full text-[11px] font-semibold border border-[#e2e6ec] bg-white text-[#4a5568] flex items-center gap-1 hover:bg-[#f7f8fb] cursor-pointer">
+        <button className="px-3 py-[5px] rounded-full text-[11px] font-semibold border border-[#dce6df] bg-white text-[#4b5b56] flex items-center gap-1 hover:bg-[#f7f9f5] cursor-pointer">
           🖨️ Print Menu
         </button>
       </div>
 
       {/* Category bar */}
-      <div className="bg-white px-3.5 py-2 flex gap-1.5 overflow-x-auto border-b border-[#e2e6ec] shrink-0 scrollbar-none">
+      <div className="bg-white px-3.5 py-2 flex gap-1.5 overflow-x-auto border-b border-[#dce6df] shrink-0 scrollbar-none">
         {MENU_CATS.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCat(cat.id)}
             className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium cursor-pointer whitespace-nowrap border flex items-center gap-1.5 transition-all
               ${activeCat === cat.id
-                ? 'bg-[#1e2433] text-white border-[#1e2433]'
-                : 'border-[#e2e6ec] bg-[#f7f8fb] text-[#4a5568] hover:border-[#c8cdd8]'}`}
+                ? 'bg-[#20302d] text-white border-[#20302d]'
+                : 'border-[#dce6df] bg-[#f7f9f5] text-[#4b5b56] hover:border-[#bfd0c7]'}`}
           >
             {cat.icon && <span className="text-[13px]">{cat.icon}</span>}
             {cat.label}
@@ -120,10 +120,10 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
               onClick={() => item.avail && onAdd(item)}
               className={`bg-white border rounded-xl overflow-hidden cursor-pointer transition-all relative group
                 ${!item.avail ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-[1px] hover:shadow-[0_4px_12px_rgba(232,92,38,0.12)]'}
-                ${qty > 0 ? 'border-[#27ae60]' : 'border-[#e2e6ec] hover:border-[#e85c26]'}`}
+                ${qty > 0 ? 'border-[#1f9d65]' : 'border-[#dce6df] hover:border-[#d9572b]'}`}
             >
               {/* ── IMAGE THUMB ── */}
-              <div className="h-[82px] relative overflow-hidden bg-[#f0f2f5]">
+              <div className="h-[82px] relative overflow-hidden bg-[#eef4ef]">
                 <img
                   src={item.img}
                   alt={item.name}
@@ -150,27 +150,27 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
 
                 {/* Best seller tag */}
                 {item.best && (
-                  <span className="absolute top-[6px] left-0 bg-[#f59e0b] text-white text-[8px] font-bold px-1.5 py-[2px] rounded-r-[4px] tracking-[0.3px]">
+                  <span className="absolute top-[6px] left-0 bg-[#c88716] text-white text-[8px] font-bold px-1.5 py-[2px] rounded-r-[4px] tracking-[0.3px]">
                     BEST
                   </span>
                 )}
 
                 {/* Availability dot */}
-                <span className={`absolute bottom-[6px] left-[6px] w-2 h-2 rounded-full border border-white ${item.avail ? 'bg-[#27ae60]' : 'bg-[#e53e3e]'}`} />
+                <span className={`absolute bottom-[6px] left-[6px] w-2 h-2 rounded-full border border-white ${item.avail ? 'bg-[#1f9d65]' : 'bg-[#d64545]'}`} />
               </div>
 
               {/* Body */}
               <div className="p-2 pt-[8px]">
-                <div className="text-[11.5px] font-semibold text-[#1e2433] leading-[1.3] mb-1 h-[29px] overflow-hidden">
+                <div className="text-[11.5px] font-semibold text-[#20302d] leading-[1.3] mb-1 h-[29px] overflow-hidden">
                   {item.name}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-bold text-[#e85c26]">₹{item.price}</span>
+                  <span className="text-[13px] font-bold text-[#d9572b]">₹{item.price}</span>
 
                   {qty === 0 ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); item.avail && onAdd(item); }}
-                      className="w-6 h-6 rounded-[6px] bg-[#e85c26] text-white text-[17px] flex items-center justify-center hover:bg-[#c94d1d] transition-colors leading-none"
+                      className="w-6 h-6 rounded-[6px] bg-[#d9572b] text-white text-[17px] flex items-center justify-center hover:bg-[#b94422] transition-colors leading-none"
                     >
                       +
                     </button>
@@ -178,12 +178,12 @@ export default function MenuGrid({ cart, onAdd, onRemove }: Props) {
                     <div className="flex items-center gap-[3px]" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => onRemove(item.id)}
-                        className="w-[22px] h-[22px] rounded-[5px] border border-[#e2e6ec] bg-[#f7f8fb] text-[14px] text-[#4a5568] flex items-center justify-center cursor-pointer hover:bg-[#e2e6ec]"
+                        className="w-[22px] h-[22px] rounded-[5px] border border-[#dce6df] bg-[#f7f9f5] text-[14px] text-[#4b5b56] flex items-center justify-center cursor-pointer hover:bg-[#dce6df]"
                       >−</button>
-                      <span className="text-[12px] font-bold min-w-[16px] text-center text-[#e85c26]">{qty}</span>
+                      <span className="text-[12px] font-bold min-w-[16px] text-center text-[#d9572b]">{qty}</span>
                       <button
                         onClick={() => onAdd(item)}
-                        className="w-[22px] h-[22px] rounded-[5px] border border-[#e2e6ec] bg-[#f7f8fb] text-[14px] text-[#4a5568] flex items-center justify-center cursor-pointer hover:bg-[#e2e6ec]"
+                        className="w-[22px] h-[22px] rounded-[5px] border border-[#dce6df] bg-[#f7f9f5] text-[14px] text-[#4b5b56] flex items-center justify-center cursor-pointer hover:bg-[#dce6df]"
                       >+</button>
                     </div>
                   )}

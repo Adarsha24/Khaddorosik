@@ -36,12 +36,12 @@ export default function Sidebar({ active, onNavigate }: Props) {
     <button
       onClick={() => onNavigate(id)}
       className={`w-[46px] h-[46px] rounded-[10px] flex flex-col items-center justify-center cursor-pointer gap-[2px] text-[8.5px] font-semibold text-center tracking-[0.2px] transition-all relative
-        ${active === id ? 'bg-[#e85c26] text-white' : 'text-[#8a95a8] hover:bg-white/7 hover:text-[#ccc]'}`}
+        ${active === id ? 'bg-[#d9572b] text-white' : 'text-[#80908a] hover:bg-white/7 hover:text-[#ccc]'}`}
     >
       <span className="text-[18px] leading-none">{icon}</span>
       <span>{label}</span>
       {badge && (
-        <span className="absolute top-[5px] right-[5px] w-4 h-4 rounded-full bg-[#f59e0b] text-white text-[9px] font-bold flex items-center justify-center">
+        <span className="absolute top-[5px] right-[5px] w-4 h-4 rounded-full bg-[#c88716] text-white text-[9px] font-bold flex items-center justify-center">
           {badge}
         </span>
       )}
@@ -49,7 +49,7 @@ export default function Sidebar({ active, onNavigate }: Props) {
   );
 
   return (
-    <aside className="w-[62px] bg-[#2d3548] flex flex-col items-center py-2.5 gap-0.5 shrink-0 overflow-hidden">
+    <aside className="w-[62px] bg-[#284a45] flex flex-col items-center py-2.5 gap-0.5 shrink-0 overflow-hidden">
       {NAV_TOP.map((n) => <NavItem key={n.id} {...n} />)}
 
       <div className="w-[30px] h-px bg-white/8 my-1" />

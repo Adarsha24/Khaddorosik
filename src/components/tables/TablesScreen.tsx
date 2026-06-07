@@ -15,7 +15,7 @@ interface Props {
 const STATUS_FILTER_OPTS = [
   { key: 'all',       label: 'All (18)',      dot: '#888'           },
   { key: 'available', label: 'Available (7)', dot: 'var(--green)'   },
-  { key: 'occupied',  label: 'Occupied (6)',  dot: '#f59e0b'        },
+  { key: 'occupied',  label: 'Occupied (6)',  dot: '#c88716'        },
   { key: 'running',   label: 'Running (3)',   dot: 'var(--primary)' },
   { key: 'reserved',  label: 'Reserved (2)',  dot: 'var(--blue)'    },
 ];

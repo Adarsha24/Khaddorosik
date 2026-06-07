@@ -15,9 +15,9 @@ type Props = {
 };
 
 const BG: Record<ToastType, string> = {
-  success: 'bg-[#27ae60]',
-  kitchen: 'bg-[#f59e0b]',
-  info:    'bg-[#2d6be4]',
+  success: 'bg-[#1f9d65]',
+  kitchen: 'bg-[#c88716]',
+  info:    'bg-[#2f6f73]',
 };
 
 export default function Toast({ toast }: Props) {
@@ -34,7 +34,7 @@ export default function Toast({ toast }: Props) {
   if (!toast) return null;
 
   return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2.5 bg-[#1e2433] text-white px-4 py-2.5 rounded-xl shadow-xl transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-2.5 bg-[#20302d] text-white px-4 py-2.5 rounded-xl shadow-xl transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
       <span className={`w-5 h-5 rounded-full ${BG[toast.type]} flex items-center justify-center text-[11px]`}>✓</span>
       <span className="text-[13px] font-medium">{toast.message}</span>
     </div>

@@ -45,7 +45,7 @@ function NavBtn({
       {badge != null && (
         <span
           className="absolute top-[5px] right-[5px] w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-          style={{ background: '#f59e0b' }}
+          style={{ background: 'var(--amber)' }}
         >
           {badge}
         </span>

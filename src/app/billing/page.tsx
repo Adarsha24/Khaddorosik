@@ -63,7 +63,7 @@ export default function POSApp() {
           <div style={{
             width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
-            background: toastType === 'kitchen' ? '#f59e0b' : toastType === 'success' ? '#27ae60' : '#2d6be4',
+            background: toastType === 'kitchen' ? 'var(--amber)' : toastType === 'success' ? 'var(--green)' : 'var(--blue)',
           }}>
             {toastType === 'kitchen' ? '🍳' : toastType === 'success' ? '✓' : 'i'}
           </div>

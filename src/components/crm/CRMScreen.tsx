@@ -48,7 +48,7 @@ export default function CRMScreen({ toast }: Props) {
         </div>
         {['All','VIP','Loyal','New','Inactive'].map((f, i) => (
           <button key={f} className="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer border"
-            style={i === 0 ? { background: 'var(--primary-light)', color: 'var(--primary)', borderColor: '#f4b8a4' } : { background: 'var(--surface)', color: 'var(--text2)', borderColor: 'var(--border)' }}>
+            style={i === 0 ? { background: 'var(--primary-light)', color: 'var(--primary)', borderColor: '#efb29f' } : { background: 'var(--surface)', color: 'var(--text2)', borderColor: 'var(--border)' }}>
             {f}
           </button>
         ))}
@@ -79,7 +79,7 @@ export default function CRMScreen({ toast }: Props) {
                   <td style={{ padding: '10px 16px' }}>
                     <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: 'var(--amber-bg)', color: 'var(--amber)' }}>{c.pts} pts</span>
                   </td>
-                  <td style={{ padding: '10px 16px', fontWeight: 600, color: '#f59e0b' }}>{c.rating !== '—' ? `★ ${c.rating}` : '—'}</td>
+                  <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--amber)' }}>{c.rating !== '—' ? `★ ${c.rating}` : '—'}</td>
                   <td style={{ padding: '10px 16px' }}>
                     <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: tag.bg, color: tag.col, textTransform: 'capitalize' }}>{c.tag}</span>
                   </td>
