@@ -7,7 +7,12 @@ import { KOT_ORDERS, SERVED_ORDERS, KotOrder, KotStatus } from '@/data/kitchenDa
 
 type TabFilter = 'all' | 'pending' | 'ready' | 'served';
 
-export default function KitchenScreen() {
+type Props = {
+  toast?: (msg: string, type: ToastType) => void;
+};
+
+
+export default function KitchenScreen({ toast: externalToast }: Props) {
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const [liveOrders, setLiveOrders] = useState<KotOrder[]>([...KOT_ORDERS]);
   const [servedOrders] = useState<KotOrder[]>([...SERVED_ORDERS]);

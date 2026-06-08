@@ -9,6 +9,11 @@ import { INV_ITEMS, SEMI_FINISHED, INV_CATEGORIES } from '@/data/inventoryData';
 
 type Tab = 'raw' | 'semi' | 'consumption' | 'purchase';
 
+type Props = {
+  toast?: (msg: string, type: ToastType) => void;
+};
+
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'raw',         label: 'Raw Materials'     },
   { id: 'semi',        label: 'Semi-Finished'      },
@@ -16,7 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'purchase',    label: 'Purchase Orders'    },
 ];
 
-export default function InventoryScreen() {
+export default function InventoryScreen({ toast: externalToast }: Props) {
   const [activeTab, setActiveTab]           = useState<Tab>('raw');
   const [search, setSearch]                 = useState('');
   const [activeCategory, setActiveCategory] = useState('All');

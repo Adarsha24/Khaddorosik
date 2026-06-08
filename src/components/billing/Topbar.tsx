@@ -20,7 +20,7 @@ export default function Topbar() {
     <header className="h-[52px] bg-[#20302d] flex items-center px-0 gap-0 shrink-0 z-50">
       {/* Logo */}
       <div className="text-[20px] font-bold text-white tracking-tight px-4 border-r border-white/10 mr-4">
-        pet<span className="text-[#d9572b]">pooja</span>
+        Khaddo<span className="text-[#d9572b]">রসিক</span>
       </div>
 
       {/* Outlet */}

@@ -1,25 +1,34 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import ReservationList from './ReservationList';
+import ReservationList   from './ReservationList';
 import ReservationDetail from './ReservationDetail';
 import Toast, { ToastMsg, ToastType } from '@/components/billing/Toast';
 import { RESERVATIONS, Reservation, ResStatus } from '@/data/reservationData';
 
 type Tab = 'upcoming' | 'today' | 'all';
 
-export default function ReservationScreen() {
+type Props = {
+  toast?: (msg: string, type: ToastType) => void;
+};
+
+export default function ReservationScreen({ toast: externalToast }: Props) {
   const [reservations, setReservations] = useState<Reservation[]>(RESERVATIONS);
-  const [selectedId, setSelectedId] = useState<number | null>(RESERVATIONS[0]?.id ?? null);
-  const [activeTab, setActiveTab] = useState<Tab>('upcoming');
-  const [rightMode, setRightMode] = useState<'view' | 'new'>('view');
-  const [toast, setToast] = useState<ToastMsg | null>(null);
+  const [selectedId,   setSelectedId]   = useState<number | null>(RESERVATIONS[0]?.id ?? null);
+  const [activeTab,    setActiveTab]     = useState<Tab>('upcoming');
+  const [rightMode,    setRightMode]     = useState<'view' | 'new'>('view');
+  const [toastState,   setToastState]    = useState<ToastMsg | null>(null);
   const toastId = useRef(0);
 
+  // Use external toast if provided, otherwise use internal toast
   const showToast = useCallback((message: string, type: ToastType) => {
-    toastId.current += 1;
-    setToast({ message, type, id: toastId.current });
-  }, []);
+    if (externalToast) {
+      externalToast(message, type);
+    } else {
+      toastId.current += 1;
+      setToastState({ message, type, id: toastId.current });
+    }
+  }, [externalToast]);
 
   const filtered = reservations.filter((r) => {
     if (activeTab === 'today')    return r.date === 'Today';
@@ -35,8 +44,8 @@ export default function ReservationScreen() {
 
   const tabs: { id: Tab; label: string; count: number | null }[] = [
     { id: 'upcoming', label: 'Upcoming', count: counts.upcoming },
-    { id: 'today',    label: 'Today',    count: counts.today },
-    { id: 'all',      label: 'All',      count: null },
+    { id: 'today',    label: 'Today',    count: counts.today    },
+    { id: 'all',      label: 'All',      count: null            },
   ];
 
   const selected = reservations.find((r) => r.id === selectedId) ?? null;
@@ -93,7 +102,9 @@ export default function ReservationScreen() {
             {tab.label}
             {tab.count !== null && (
               <span className={`px-1.5 py-[1px] rounded-full text-[10px] font-semibold
-                ${activeTab === tab.id ? 'bg-[#fff3ee] text-[#e85c26]' : 'bg-[#f0f2f5] text-[#8a95a8]'}`}>
+                ${activeTab === tab.id
+                  ? 'bg-[#fff3ee] text-[#e85c26]'
+                  : 'bg-[#f0f2f5] text-[#8a95a8]'}`}>
                 {tab.count}
               </span>
             )}
@@ -102,7 +113,7 @@ export default function ReservationScreen() {
       </div>
 
       {/* Two-column layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left list */}
         <div className="w-[320px] border-r border-[#e2e6ec] flex flex-col overflow-hidden shrink-0 bg-white">
           <ReservationList
@@ -113,7 +124,7 @@ export default function ReservationScreen() {
         </div>
 
         {/* Right detail / form */}
-        <div className="flex-1 bg-[#f7f8fb] overflow-hidden flex flex-col">
+        <div className="flex-1 bg-[#f7f8fb] overflow-hidden flex flex-col min-h-0">
           <ReservationDetail
             selected={selected}
             mode={rightMode}
@@ -124,7 +135,8 @@ export default function ReservationScreen() {
         </div>
       </div>
 
-      <Toast toast={toast} />
+      {/* Only show internal toast if no external toast provided */}
+      {!externalToast && <Toast toast={toastState} />}
     </div>
   );
 }

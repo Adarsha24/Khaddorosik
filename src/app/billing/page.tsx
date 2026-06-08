@@ -7,11 +7,11 @@ import ReservationScreen from '@/components/reservation/ReservationScreen';
 import ReportsScreen     from '@/components/reports/ReportsScreen';
 import InventoryScreen   from '@/components/inventory/InventoryScreen';
 import CRMScreen         from '@/components/crm/CRMScreen';
+import EmployeesScreen   from '@/components/employee/EmployeeScreen';
+import PaymentModal      from '@/components/billing/PaymentModal';
+import Topbar            from '@/components/billing/Topbar';
+import Sidebar           from '@/components/billing/Sidebar';
 import type { ScreenId, CartItem, ToastType } from '@/types';
-import Topbar from '@/components/billing/Topbar';
-import Sidebar from '@/components/billing/Sidebar';
-import EmployeesScreen from '@/components/employee/EmployeeScreen';
-import PaymentModal from '@/components/billing/PaymentModal';
 
 export default function POSApp() {
   const [screen,       setScreen]       = useState<ScreenId>('billing');
@@ -28,7 +28,7 @@ export default function POSApp() {
     setTimeout(() => setToastVisible(false), 2200);
   }, []);
 
-  const openPayment   = (cart: CartItem[]) => { setPayCart(cart); setPayOpen(true); };
+  const openPayment    = (cart: CartItem[]) => { setPayCart(cart); setPayOpen(true); };
   const confirmPayment = () => { setPayOpen(false); toast('Payment confirmed! 🎉', 'success'); };
 
   return (

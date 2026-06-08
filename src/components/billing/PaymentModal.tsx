@@ -1,12 +1,14 @@
 'use client';
 
+import { CartItem } from '@/types';
 import { useState } from 'react';
 
 type Props = {
-  open: boolean;
-  total: number;
+  cart: CartItem[];
   onClose: () => void;
   onConfirm: () => void;
+  total?: number;
+  open?: boolean;
 };
 
 type PayMethod = 'cash' | 'card' | 'upi' | 'paytm' | 'wallet' | 'split';
@@ -21,16 +23,22 @@ const PAY_METHODS: { id: PayMethod; icon: string; label: string }[] = [
   { id: 'split',  icon: '✂️', label: 'Split' },
 ];
 
-export default function PaymentModal({ open, total, onClose, onConfirm }: Props) {
+export default function PaymentModal({  cart, total, open, onClose, onConfirm }: Props) {
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
   const [tipOption, setTipOption] = useState<TipOption>('none');
 
-  if (!open) return null;
+  if (open===false) return null;
+  // Calculate total from cart if not provided directly
+  const cartTotal = cart
+    ? cart.reduce((s, i) => {
+        const sub  = i.price * i.qty;
+        const disc = Math.round(sub * 0.05);
+        const base = sub - disc;
+        return s + base + Math.round(base * 0.025) + Math.round(base * 0.025);
+      }, 0)
+    : 0;
 
-  const subtotal = Math.round(total / 1.05 / 0.95);
-  const gst      = Math.round(subtotal * 0.05);
-  const discount = Math.round(subtotal * 0.05);
-  const display  = total || 1456;
+  const display = total ?? cartTotal;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center" onClick={onClose}>
