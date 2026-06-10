@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  MANAGER
+  CASHIER
+  WAITER
+  KITCHEN
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+}
+
+enum SessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+
+enum ItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+}
+
+enum KOTStatus {
+  PENDING
+  PREPARING
+  READY
+  COMPLETED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  WALLET
+  SPLIT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum TransactionType {
+  IN
+  OUT
+  ADJUSTMENT
+  WASTE
+}
+
+enum EmployeeRole {
+  MANAGER
+  HEAD_WAITER
+  WAITER
+  CASHIER
+  KITCHEN_STAFF
+  CHEF
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String         @map("password_hash")
+  role         Role           @default(WAITER)
+  employeeId   String?        @unique @map("employee_id")
+  employee     Employee?      @relation(fields: [employeeId], references: [id])
+  refreshTokens RefreshToken[]
+  orders       Order[]        @relation("CreatedBy")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
+}
+
+// ─── Menu ─────────────────────────────────────────────────────────────────────
+
+model Category {
+  id           String     @id @default(uuid())
+  name         String     @unique
+  displayOrder Int        @default(0) @map("display_order")
+  active       Boolean    @default(true)
+  menuItems    MenuItem[]
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id          String      @id @default(uuid())
+  categoryId  String      @map("category_id")
+  category    Category    @relation(fields: [categoryId], references: [id])
+  name        String
+  price       Decimal     @db.Decimal(10, 2)
+  veg         Boolean     @default(false)
+  description String?
+  imageUrl    String?     @map("image_url")
+  available   Boolean     @default(true)
+  bestSeller  Boolean     @default(false) @map("best_seller")
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@map("menu_items")
+}
+
+// ─── Tables ───────────────────────────────────────────────────────────────────
+
+model RestaurantTable {
+  id            String         @id @default(uuid())
+  number        Int            @unique
+  capacity      Int
+  section       String?
+  status        TableStatus    @default(AVAILABLE)
+  tableSessions TableSession[]
+  reservations  Reservation[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@map("restaurant_tables")
+}
+
+model TableSession {
+  id       String          @id @default(uuid())
+  tableId  String          @map("table_id")
+  table    RestaurantTable @relation(fields: [tableId], references: [id])
+  waiterId String?         @map("waiter_id")
+  openedAt DateTime        @default(now()) @map("opened_at")
+  closedAt DateTime?       @map("closed_at")
+  status   SessionStatus   @default(OPEN)
+  orders   Order[]
+
+  @@map("table_sessions")
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id             String        @id @default(uuid())
+  tableSessionId String?       @map("table_session_id")
+  tableSession   TableSession? @relation(fields: [tableSessionId], references: [id])
+  tableId        String?       @map("table_id")
+  customerId     String?       @map("customer_id")
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  orderType      OrderType     @default(DINE_IN) @map("order_type")
+  status         OrderStatus   @default(PENDING)
+  subtotal       Decimal       @db.Decimal(10, 2)
+  taxAmount      Decimal       @default(0) @db.Decimal(10, 2) @map("tax_amount")
+  discountAmount Decimal       @default(0) @db.Decimal(10, 2) @map("discount_amount")
+  total          Decimal       @db.Decimal(10, 2)
+  notes          String?
+  createdBy      String?       @map("created_by")
+  creator        User?         @relation("CreatedBy", fields: [createdBy], references: [id])
+  items          OrderItem[]
+  kots           KOT[]
+  payments       Payment[]
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String     @id @default(uuid())
+  orderId    String     @map("order_id")
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String     @map("menu_item_id")
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  unitPrice  Decimal    @db.Decimal(10, 2) @map("unit_price")
+  notes      String?
+  status     ItemStatus @default(PENDING)
+  kotItems   KOTItem[]
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@map("order_items")
+}
+
+// ─── Kitchen Order Tickets ────────────────────────────────────────────────────
+
+model KOT {
+  id          String    @id @default(uuid())
+  orderId     String    @map("order_id")
+  order       Order     @relation(fields: [orderId], references: [id])
+  tableId     String?   @map("table_id")
+  status      KOTStatus @default(PENDING)
+  kotItems    KOTItem[]
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@map("kots")
+}
+
+model KOTItem {
+  id          String    @id @default(uuid())
+  kotId       String    @map("kot_id")
+  kot         KOT       @relation(fields: [kotId], references: [id], onDelete: Cascade)
+  orderItemId String    @map("order_item_id")
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  quantity    Int
+  done        Boolean   @default(false)
+
+  @@map("kot_items")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id        String        @id @default(uuid())
+  orderId   String        @map("order_id")
+  order     Order         @relation(fields: [orderId], references: [id])
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  reference String?
+  status    PaymentStatus @default(COMPLETED)
+  splits    PaymentSplit[]
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("payments")
+}
+
+model PaymentSplit {
+  id        String        @id @default(uuid())
+  paymentId String        @map("payment_id")
+  payment   Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(10, 2)
+
+  @@map("payment_splits")
+}
+
+// ─── Reservations ─────────────────────────────────────────────────────────────
+
+model Reservation {
+  id         String            @id @default(uuid())
+  customerId String?           @map("customer_id")
+  customer   Customer?         @relation(fields: [customerId], references: [id])
+  tableId    String?           @map("table_id")
+  table      RestaurantTable?  @relation(fields: [tableId], references: [id])
+  date       DateTime          @db.Date
+  time       String
+  partySize  Int               @map("party_size")
+  status     ReservationStatus @default(PENDING)
+  notes      String?
+  guestName  String            @map("guest_name")
+  guestPhone String?           @map("guest_phone")
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  @@map("reservations")
+}
+
+// ─── Inventory ────────────────────────────────────────────────────────────────
+
+model InventoryItem {
+  id           String                 @id @default(uuid())
+  name         String
+  category     String
+  unit         String
+  currentStock Decimal                @db.Decimal(10, 3) @map("current_stock")
+  reorderLevel Decimal                @db.Decimal(10, 3) @map("reorder_level")
+  transactions InventoryTransaction[]
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+
+  @@map("inventory_items")
+}
+
+model InventoryTransaction {
+  id          String          @id @default(uuid())
+  itemId      String          @map("item_id")
+  item        InventoryItem   @relation(fields: [itemId], references: [id])
+  quantity    Decimal         @db.Decimal(10, 3)
+  type        TransactionType
+  referenceId String?         @map("reference_id")
+  notes       String?
+  createdBy   String?         @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@map("inventory_transactions")
+}
+
+// ─── Employees ────────────────────────────────────────────────────────────────
+
+model Employee {
+  id        String       @id @default(uuid())
+  name      String
+  role      EmployeeRole
+  phone     String?
+  email     String?      @unique
+  active    Boolean      @default(true)
+  user      User?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
+
+// ─── CRM ──────────────────────────────────────────────────────────────────────
+
+model Customer {
+  id            String        @id @default(uuid())
+  name          String
+  phone         String?       @unique
+  email         String?       @unique
+  loyaltyPoints Int           @default(0) @map("loyalty_points")
+  totalVisits   Int           @default(0) @map("total_visits")
+  totalSpent    Decimal       @default(0) @db.Decimal(10, 2) @map("total_spent")
+  orders        Order[]
+  reservations  Reservation[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@map("customers")
+}

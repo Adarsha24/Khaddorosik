@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import KotCard from '@/components/kitchen/KOTCard';
 import Toast, { ToastMsg, ToastType } from '@/components/billing/Toast';
 import { KOT_ORDERS, SERVED_ORDERS, KotOrder, KotStatus } from '@/data/kitchenData';
+import { kot as kotApi, type ApiKOT } from '@/lib/api';
 
 type TabFilter = 'all' | 'pending' | 'ready' | 'served';
 
@@ -15,6 +16,15 @@ type Props = {
 export default function KitchenScreen({ toast: externalToast }: Props) {
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const [liveOrders, setLiveOrders] = useState<KotOrder[]>([...KOT_ORDERS]);
+  const [apiKots, setApiKots] = useState<ApiKOT[]>([]);
+
+  useEffect(() => {
+    kotApi.list('PENDING,PREPARING,READY').then(setApiKots).catch(() => {});
+    const interval = setInterval(() => {
+      kotApi.list('PENDING,PREPARING,READY').then(setApiKots).catch(() => {});
+    }, 15000); // poll every 15s
+    return () => clearInterval(interval);
+  }, []);
   const [servedOrders] = useState<KotOrder[]>([...SERVED_ORDERS]);
   const [toast, setToast] = useState<ToastMsg | null>(null);
   const toastCounter = useRef(0);
@@ -24,19 +34,32 @@ export default function KitchenScreen({ toast: externalToast }: Props) {
     setToast({ message, type, id: toastCounter.current });
   }, []);
 
-  const handleMarkReady = useCallback((id: number) => {
-    setLiveOrders(prev =>
-      prev.map(o => o.id === id ? { ...o, status: 'ready' as KotStatus, color: '#1f9d65' } : o)
-    );
+  const handleMarkReady = useCallback(async (id: number) => {
+    // Try API first (string id for real KOTs), fallback to local state
+    const apiKot = apiKots.find((_, i) => i === id);
+    if (apiKot) {
+      await kotApi.updateStatus(apiKot.id, 'READY').catch(() => {});
+      setApiKots(prev => prev.map(k => k.id === apiKot.id ? { ...k, status: 'READY' } : k));
+    } else {
+      setLiveOrders(prev =>
+        prev.map(o => o.id === id ? { ...o, status: 'ready' as KotStatus, color: '#1f9d65' } : o)
+      );
+    }
     showToast('Order marked as Ready ✓', 'success');
-  }, [showToast]);
+  }, [showToast, apiKots]);
 
-  const handleMarkServed = useCallback((id: number) => {
-    setLiveOrders(prev =>
-      prev.map(o => o.id === id ? { ...o, status: 'served' as KotStatus } : o)
-    );
+  const handleMarkServed = useCallback(async (id: number) => {
+    const apiKot = apiKots.find((_, i) => i === id);
+    if (apiKot) {
+      await kotApi.updateStatus(apiKot.id, 'COMPLETED').catch(() => {});
+      setApiKots(prev => prev.filter(k => k.id !== apiKot.id));
+    } else {
+      setLiveOrders(prev =>
+        prev.map(o => o.id === id ? { ...o, status: 'served' as KotStatus } : o)
+      );
+    }
     showToast('Order marked as Served 🍽️', 'success');
-  }, [showToast]);
+  }, [showToast, apiKots]);
 
   const handleReprint = useCallback((_id: number) => {
     showToast('KOT reprinted 🖨️', 'kitchen');

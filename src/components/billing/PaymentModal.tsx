@@ -6,7 +6,7 @@ import { useState } from 'react';
 type Props = {
   cart: CartItem[];
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (method: string) => void;
   total?: number;
   open?: boolean;
 };
@@ -127,7 +127,7 @@ export default function PaymentModal({  cart, total, open, onClose, onConfirm }:
 
           {/* Confirm */}
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(payMethod)}
             className="w-full py-3.5 rounded-xl bg-[#d9572b] text-white text-[15px] font-bold flex items-center justify-center gap-2 hover:bg-[#b94422] transition-colors cursor-pointer mb-5"
           >
             ✓ Confirm Payment • ₹{display.toLocaleString('en-IN')}

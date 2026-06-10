@@ -11,14 +11,19 @@ import EmployeesScreen   from '@/components/employee/EmployeeScreen';
 import PaymentModal      from '@/components/billing/PaymentModal';
 import Topbar            from '@/components/billing/Topbar';
 import Sidebar           from '@/components/billing/Sidebar';
+import LoginScreen       from '@/components/auth/LoginScreen';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { payments } from '@/lib/api';
 import type { ScreenId, CartItem, ToastType } from '@/types';
 
-export default function POSApp() {
+function POSApp() {
+  const { user, loading } = useAuth();
   const [screen,       setScreen]       = useState<ScreenId>('billing');
   const [toastMsg,     setToastMsg]     = useState('');
   const [toastType,    setToastType]    = useState<ToastType>('success');
   const [toastVisible, setToastVisible] = useState(false);
   const [payCart,      setPayCart]      = useState<CartItem[]>([]);
+  const [payOrderId,   setPayOrderId]   = useState<string | undefined>();
   const [payOpen,      setPayOpen]      = useState(false);
 
   const toast = useCallback((msg: string, type: ToastType) => {
@@ -28,8 +33,35 @@ export default function POSApp() {
     setTimeout(() => setToastVisible(false), 2200);
   }, []);
 
-  const openPayment    = (cart: CartItem[]) => { setPayCart(cart); setPayOpen(true); };
-  const confirmPayment = () => { setPayOpen(false); toast('Payment confirmed! 🎉', 'success'); };
+  const openPayment = (cart: CartItem[], orderId?: string) => {
+    setPayCart(cart);
+    setPayOrderId(orderId);
+    setPayOpen(true);
+  };
+
+  const confirmPayment = async (method: string) => {
+    if (payOrderId) {
+      try {
+        await payments.create({ orderId: payOrderId, method: method.toUpperCase() });
+        toast('Payment confirmed! 🎉', 'success');
+      } catch (e) {
+        toast('Payment failed. Try again.', 'info');
+        return;
+      }
+    } else {
+      toast('Payment confirmed! 🎉', 'success');
+    }
+    setPayOpen(false);
+    setPayOrderId(undefined);
+  };
+
+  if (loading) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", color: 'var(--text3)' }}>
+      Loading…
+    </div>
+  );
+
+  if (!user) return <LoginScreen />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', fontFamily: "'DM Sans', sans-serif" }}>
@@ -50,7 +82,6 @@ export default function POSApp() {
         </main>
       </div>
 
-      {/* Toast */}
       {toastVisible && (
         <div style={{
           position: 'fixed', bottom: 20, right: 20, zIndex: 300,
@@ -82,5 +113,13 @@ export default function POSApp() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthProvider>
+      <POSApp />
+    </AuthProvider>
   );
 }

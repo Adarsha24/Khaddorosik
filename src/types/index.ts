@@ -11,7 +11,7 @@ export type ScreenId =
 export type ToastType = 'success' | 'kitchen' | 'info';
 
 export interface CartItem {
-  id: number;
+  id: string;
   name: string;
   price: number;
   qty: number;
@@ -20,12 +20,13 @@ export interface CartItem {
 }
 
 export interface MenuItem {
-  id: number;
+  id: string;
   name: string;
   cat: string;
   price: number;
   veg: boolean;
   emoji: string;
+  img?: string;
   best?: boolean;
   avail: boolean;
 }

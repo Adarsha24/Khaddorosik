@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   Printer,
@@ -11,13 +11,12 @@ import {
   ShoppingCart,
   Pencil,
 } from "lucide-react";
-import { MENU_CATS, MENU_ITEMS } from "@/data";
-import { KOT_ORDERS } from "@/data/kitchenData";
+import { menu, orders, kot, type ApiMenuItem, type ApiCategory, type ApiKOT } from "@/lib/api";
 import type { CartItem, ToastType } from "@/types";
 
 interface Props {
   toast: (msg: string, type: ToastType) => void;
-  onPayment: (cart: CartItem[]) => void;
+  onPayment: (cart: CartItem[], orderId?: string) => void;
   onNavigate: (id: string) => void;
 }
 
@@ -30,55 +29,63 @@ const FILTER_LABELS: Record<string, string> = {
   avail: "✓ In Stock",
 };
 
-// Dynamic — counts only pending KOT orders
-const RUNNING_KOT_COUNT = KOT_ORDERS.filter(
-  (o) => o.status === "pending",
-).length;
-
 export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("all");
   const [filter, setFilter] = useState("all");
-  const [cart, setCart] = useState<Record<number, CartItem>>({});
+  const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [orderType, setOrderType] = useState("Dine In");
   const [activeTab, setActiveTab] = useState(0);
+  const [menuItems, setMenuItems] = useState<ApiMenuItem[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [kotOrders, setKotOrders] = useState<ApiKOT[]>([]);
+  const [orderId, setOrderId] = useState<string | undefined>();
+  const [kotLoading, setKotLoading] = useState(false);
+
+  // Fetch menu data on mount
+  useEffect(() => {
+    menu.items({ limit: '200' }).then(res => setMenuItems(res.data)).catch(() => {});
+    menu.categories().then(setCategories).catch(() => {});
+  }, []);
+
+  // Fetch KOTs when switching to Running KOT tab
+  useEffect(() => {
+    if (activeTab === 1) {
+      kot.list('PENDING,PREPARING,READY').then(setKotOrders).catch(() => {});
+    }
+  }, [activeTab]);
 
   const items = useMemo(() => {
-    let list = MENU_ITEMS;
-    if (cat !== "all") list = list.filter((i) => i.cat === cat);
+    let list = menuItems ?? [];
+    if (cat !== "all") list = list.filter((i) => i.category?.name?.toLowerCase() === cat);
     if (filter === "veg") list = list.filter((i) => i.veg);
     if (filter === "nv") list = list.filter((i) => !i.veg);
-    if (filter === "best") list = list.filter((i) => i.best);
-    if (filter === "avail") list = list.filter((i) => i.avail);
-    if (search)
-      list = list.filter((i) =>
-        i.name.toLowerCase().includes(search.toLowerCase()),
-      );
+    if (filter === "best") list = list.filter((i) => i.bestSeller);
+    if (filter === "avail") list = list.filter((i) => i.available);
+    if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
     return list;
-  }, [cat, filter, search]);
+  }, [cat, filter, search, menuItems]);
 
-  const addItem = (id: number) => {
-    const item = MENU_ITEMS.find((i) => i.id === id)!;
+  const allCats = useMemo(() => [
+    { id: 'all', name: 'All', icon: '🍽️' },
+    ...categories.map(c => ({ id: c.name.toLowerCase(), name: c.name, icon: '' })),
+  ], [categories]);
+
+  const addItem = (id: string) => {
+    const item = menuItems.find((i) => i.id === id)!;
     setCart((prev) => {
       const existing = prev[id];
       return {
         ...prev,
         [id]: existing
           ? { ...existing, qty: existing.qty + 1 }
-          : {
-              id,
-              name: item.name,
-              price: item.price,
-              qty: 1,
-              veg: item.veg,
-              emoji: item.emoji,
-            },
+          : { id, name: item.name, price: Number(item.price), qty: 1, veg: item.veg, emoji: '' },
       };
     });
     toast(`${item.name} added`, "success");
   };
 
-  const changeQty = (id: number, delta: number) => {
+  const changeQty = (id: string, delta: number) => {
     setCart((prev) => {
       const next = { ...prev };
       if (!next[id]) return prev;
@@ -88,7 +95,26 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
     });
   };
 
-  const clearCart = () => setCart({});
+  const clearCart = () => { setCart({}); setOrderId(undefined); };
+
+  const sendKOT = async () => {
+    if (cartItems.length === 0) return;
+    setKotLoading(true);
+    try {
+      const orderTypeMap: Record<string, string> = { 'Dine In': 'DINE_IN', 'Takeaway': 'TAKEAWAY', 'Delivery': 'DELIVERY' };
+      const order = await orders.create({
+        orderType: orderTypeMap[orderType] ?? 'DINE_IN',
+        items: cartItems.map(i => ({ menuItemId: i.id, quantity: i.qty })),
+      });
+      setOrderId(order.id);
+      toast("KOT sent to kitchen 🍳", "kitchen");
+      setActiveTab(1);
+    } catch (e) {
+      toast("Failed to send KOT", "info");
+    } finally {
+      setKotLoading(false);
+    }
+  };
 
   const cartItems = Object.values(cart);
   const sub = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
@@ -100,7 +126,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
 
   const TABS = [
     { label: "New Order", badge: null },
-    { label: "Running KOT", badge: RUNNING_KOT_COUNT },
+    { label: "Running KOT", badge: kotOrders.filter(k => k.status !== 'COMPLETED').length || null },
     { label: "Order History", badge: null },
     { label: "Parcel", badge: null },
   ];
@@ -164,115 +190,63 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             className="flex-1 overflow-y-auto p-4 flex flex-wrap gap-3 content-start"
             style={{ background: "var(--surface2)" }}
           >
-            {KOT_ORDERS.map((order, oi) => {
-              const timeMins = parseInt(order.time);
-              const headerBg =
-                order.status === "ready" ? "var(--green)" : "var(--dark)";
-              const timeBg =
-                order.status === "ready"
-                  ? "rgba(255,255,255,0.2)"
-                  : timeMins >= 15
-                    ? "rgba(231,76,60,0.8)"
-                    : "rgba(255,255,255,0.15)";
+            {kotOrders.length === 0 && (
+              <div style={{ color: 'var(--text3)', padding: 40, width: '100%', textAlign: 'center' }}>
+                No active KOTs
+              </div>
+            )}
+            {kotOrders.map((order, oi) => {
+              const isReady = order.status === "READY";
+              const headerBg = isReady ? "var(--green)" : "var(--dark)";
               return (
-                <div
-                  key={oi}
-                  className="rounded-xl overflow-hidden flex-shrink-0"
-                  style={{
-                    width: 220,
-                    background: "var(--surface)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <div
-                    className="flex items-center justify-between px-3 py-2.5"
-                    style={{ background: headerBg }}
-                  >
+                <div key={order.id} className="rounded-xl overflow-hidden flex-shrink-0"
+                  style={{ width: 220, background: "var(--surface)", border: "1px solid var(--border)" }}>
+                  <div className="flex items-center justify-between px-3 py-2.5" style={{ background: headerBg }}>
                     <div>
                       <div className="text-[15px] font-extrabold text-white">
-                        Table {order.table}
+                        {order.order?.tableId ? `Table` : order.order?.orderType ?? 'Order'}
                       </div>
-                      <div
-                        className="text-[10px]"
-                        style={{ color: "rgba(255,255,255,0.6)" }}
-                      >
-                        KOT #{100 + oi}
+                      <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }}>
+                        KOT #{oi + 1}
                       </div>
                     </div>
-                    <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
-                      style={{ background: timeBg }}
-                    >
-                      {order.time} ago
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                      style={{ background: "rgba(255,255,255,0.2)" }}>
+                      {order.status}
                     </span>
                   </div>
-                  <div className="h-1" style={{ background: order.color }} />
                   <div className="py-1.5">
-                    {order.items.map((item, ii) => (
-                      <div
-                        key={ii}
-                        className="flex items-center gap-2 px-3 py-1.5 text-[12px]"
-                      >
-                        <span
-                          className="font-extrabold min-w-[18px]"
-                          style={{ color: "var(--primary)" }}
-                        >
-                          {item.q}×
+                    {order.kotItems.map((item) => (
+                      <div key={item.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px]">
+                        <span className="font-extrabold min-w-[18px]" style={{ color: "var(--primary)" }}>
+                          {item.quantity}×
                         </span>
-                        <span
-                          className="flex-1 font-medium"
-                          style={{ color: "#20302d" }}
-                        >
-                          {item.n}
+                        <span className="flex-1 font-medium" style={{ color: "#20302d" }}>
+                          {item.orderItem?.menuItem?.name ?? 'Item'}
                         </span>
-                        <span
-                          className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]"
-                          style={{
-                            background: item.done
-                              ? "var(--green)"
-                              : "var(--border)",
-                            color: item.done ? "#fff" : "transparent",
-                          }}
-                        >
+                        <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]"
+                          style={{ background: item.done ? "var(--green)" : "var(--border)", color: item.done ? "#fff" : "transparent" }}>
                           {item.done ? "✓" : ""}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div
-                    className="flex gap-1.5 px-3 pb-3 pt-1.5"
-                    style={{ borderTop: "1px solid var(--border)" }}
-                  >
-                    <button
-                      onClick={() => toast("KOT reprinted", "kitchen")}
+                  <div className="flex gap-1.5 px-3 pb-3 pt-1.5" style={{ borderTop: "1px solid var(--border)" }}>
+                    <button onClick={() => toast("KOT reprinted", "kitchen")}
                       className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
-                      style={{
-                        border: "1px solid var(--border)",
-                        background: "var(--surface2)",
-                        color: "var(--text2)",
-                      }}
-                    >
+                      style={{ border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)" }}>
                       Reprint
                     </button>
                     <button
-                      onClick={() =>
-                        toast(
-                          order.status === "ready"
-                            ? "Marked served"
-                            : "Marked ready",
-                          "success",
-                        )
-                      }
-                      className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
-                      style={{
-                        background:
-                          order.status === "ready"
-                            ? "var(--green)"
-                            : "var(--primary)",
-                        border: "none",
+                      onClick={async () => {
+                        const next = isReady ? 'COMPLETED' : 'READY';
+                        await kot.updateStatus(order.id, next).catch(() => {});
+                        setKotOrders(prev => prev.map(k => k.id === order.id ? { ...k, status: next } : k));
+                        toast(isReady ? "Marked served" : "Marked ready", "success");
                       }}
-                    >
-                      {order.status === "ready" ? "Served" : "Mark Ready"}
+                      className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
+                      style={{ background: isReady ? "var(--green)" : "var(--primary)", border: "none" }}>
+                      {isReady ? "Served" : "Mark Ready"}
                     </button>
                   </div>
                 </div>
@@ -418,7 +392,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              {MENU_CATS.map((c) => (
+              {allCats.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setCat(c.id)}
@@ -438,7 +412,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                   }
                 >
                   {c.icon && <span className="text-[13px]">{c.icon}</span>}
-                  {c.label}
+                  {c.name}
                 </button>
               ))}
             </div>
@@ -475,6 +449,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
               )}
               {items.map((item) => {
                 const inCart = cart[item.id];
+                const price = Number(item.price);
                 return (
                   <div
                     key={item.id}
@@ -505,16 +480,13 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       className="h-[82px] relative overflow-hidden"
                       style={{ background: "var(--surface3)" }}
                     >
-                      <img
-                        src={item.img}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
+                      {item.imageUrl && (
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      )}
                       <div
                         className="absolute inset-0 flex items-center justify-center"
                         style={{ fontSize: 30, background: "rgba(0,0,0,0)" }}
                       ></div>
-                      {item.emoji}
                       <div
                         className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-sm flex items-center justify-center"
                         style={{
@@ -528,7 +500,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                           }}
                         />
                       </div>
-                      {item.best && (
+                      {item.bestSeller && (
                         <div
                           className="absolute top-1.5 left-0 text-white text-[8px] font-bold px-1.5 py-0.5"
                           style={{
@@ -542,7 +514,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       <div
                         className="absolute bottom-1.5 left-1.5 w-2 h-2 rounded-full"
                         style={{
-                          background: item.avail
+                          background: item.available
                             ? "var(--green)"
                             : "var(--red)",
                         }}
@@ -560,7 +532,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                           className="text-[13px] font-bold"
                           style={{ color: "var(--primary)" }}
                         >
-                          ₹{item.price}
+                          ₹{price}
                         </span>
                         {inCart ? (
                           <div
@@ -878,9 +850,9 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
           <div className="grid grid-cols-4 gap-1.5 mb-2">
             {[
               {
-                label: "KOT",
+                label: kotLoading ? "…" : "KOT",
                 Icon: Printer,
-                onClick: () => toast("KOT sent to kitchen", "kitchen"),
+                onClick: sendKOT,
                 green: false,
               },
               {
@@ -918,7 +890,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             ))}
           </div>
           <button
-            onClick={() => cartItems.length > 0 && onPayment(cartItems)}
+            onClick={() => cartItems.length > 0 && onPayment(cartItems, orderId)}
             className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all"
             style={{
               background:
