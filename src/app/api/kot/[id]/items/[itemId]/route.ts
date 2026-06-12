@@ -9,17 +9,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await authenticate(req)
     if (auth instanceof Response) return auth
-
     const { id, itemId } = await params
     const body = await req.json()
     const done = typeof body.done === 'boolean' ? body.done : true
 
-    const kotItem = await prisma.kOTItem.findFirst({ where: { id: itemId, kotId: id } })
+    // Verify KOT belongs to this restaurant
+    const kotItem = await prisma.kOTItem.findFirst({
+      where: { id: itemId, kotId: id, kot: { order: { restaurantId: auth.restaurantId } } },
+    })
     if (!kotItem) return notFound('KOT item')
 
     const updated = await prisma.kOTItem.update({ where: { id: itemId }, data: { done } })
 
-    // If all items in KOT are done, auto-advance KOT to READY
+    // Auto-advance KOT when all items done
     const remaining = await prisma.kOTItem.count({ where: { kotId: id, done: false } })
     if (remaining === 0) {
       await prisma.kOT.update({ where: { id }, data: { status: 'READY' } })

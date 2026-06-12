@@ -1,157 +1,172 @@
-'use client';
+'use client'
+import { useState, useEffect, useCallback } from 'react'
+import KOTCard from './KOTCard'
+import { kot as kotApi, ApiKOT } from '@/lib/api'
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import KotCard from '@/components/kitchen/KOTCard';
-import Toast, { ToastMsg, ToastType } from '@/components/billing/Toast';
-import { KOT_ORDERS, SERVED_ORDERS, KotOrder, KotStatus } from '@/data/kitchenData';
-import { kot as kotApi, type ApiKOT } from '@/lib/api';
+type Filter = 'ALL' | 'PENDING' | 'PREPARING' | 'READY' | 'COMPLETED'
+type Props = { toast: (msg: string, type: 'success' | 'info' | 'kitchen') => void }
 
-type TabFilter = 'all' | 'pending' | 'ready' | 'served';
+export default function KitchenScreen({ toast }: Props) {
+  const [kots, setKots]         = useState<ApiKOT[]>([])
+  const [filter, setFilter]     = useState<Filter>('ALL')
+  const [loading, setLoading]   = useState(true)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
 
-type Props = {
-  toast?: (msg: string, type: ToastType) => void;
-};
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const data = await kotApi.list('PENDING,PREPARING,READY,COMPLETED')
+      setKots(data)
+      setLastSync(new Date())
+    } catch {
+      if (!silent) toast('Failed to load KOTs', 'info')
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
 
-
-export default function KitchenScreen({ toast: externalToast }: Props) {
-  const [activeTab, setActiveTab] = useState<TabFilter>('all');
-  const [liveOrders, setLiveOrders] = useState<KotOrder[]>([...KOT_ORDERS]);
-  const [apiKots, setApiKots] = useState<ApiKOT[]>([]);
-
+  useEffect(() => { load() }, [load])
+  // Auto-refresh every 15 s
   useEffect(() => {
-    kotApi.list('PENDING,PREPARING,READY').then(setApiKots).catch(() => {});
-    const interval = setInterval(() => {
-      kotApi.list('PENDING,PREPARING,READY').then(setApiKots).catch(() => {});
-    }, 15000); // poll every 15s
-    return () => clearInterval(interval);
-  }, []);
-  const [servedOrders] = useState<KotOrder[]>([...SERVED_ORDERS]);
-  const [toast, setToast] = useState<ToastMsg | null>(null);
-  const toastCounter = useRef(0);
+    const id = setInterval(() => load(true), 15000)
+    return () => clearInterval(id)
+  }, [load])
 
-  const showToast = useCallback((message: string, type: ToastType) => {
-    toastCounter.current += 1;
-    setToast({ message, type, id: toastCounter.current });
-  }, []);
+  const handleStatusChange = useCallback(async (id: string, status: string) => {
+    await kotApi.updateStatus(id, status)
+    setKots(prev => prev.map(k => k.id === id ? { ...k, status } : k))
+    const msgs: Record<string, string> = { PREPARING: '🔥 Cooking started', READY: '✅ KOT ready!', COMPLETED: '🍽️ Served!' }
+    toast(msgs[status] ?? 'Status updated', 'success')
+  }, [toast])
 
-  const handleMarkReady = useCallback(async (id: number) => {
-    // Try API first (string id for real KOTs), fallback to local state
-    const apiKot = apiKots.find((_, i) => i === id);
-    if (apiKot) {
-      await kotApi.updateStatus(apiKot.id, 'READY').catch(() => {});
-      setApiKots(prev => prev.map(k => k.id === apiKot.id ? { ...k, status: 'READY' } : k));
-    } else {
-      setLiveOrders(prev =>
-        prev.map(o => o.id === id ? { ...o, status: 'ready' as KotStatus, color: '#1f9d65' } : o)
-      );
-    }
-    showToast('Order marked as Ready ✓', 'success');
-  }, [showToast, apiKots]);
+  const handleItemDone = useCallback(async (kotId: string, itemId: string, done: boolean) => {
+    await kotApi.markItemDone(kotId, itemId, done)
+    setKots(prev => prev.map(k =>
+      k.id !== kotId ? k : {
+        ...k,
+        kotItems: k.kotItems.map(i => i.id === itemId ? { ...i, done } : i),
+      }
+    ))
+  }, [])
 
-  const handleMarkServed = useCallback(async (id: number) => {
-    const apiKot = apiKots.find((_, i) => i === id);
-    if (apiKot) {
-      await kotApi.updateStatus(apiKot.id, 'COMPLETED').catch(() => {});
-      setApiKots(prev => prev.filter(k => k.id !== apiKot.id));
-    } else {
-      setLiveOrders(prev =>
-        prev.map(o => o.id === id ? { ...o, status: 'served' as KotStatus } : o)
-      );
-    }
-    showToast('Order marked as Served 🍽️', 'success');
-  }, [showToast, apiKots]);
+  const counts = {
+    ALL:       kots.length,
+    PENDING:   kots.filter(k => k.status === 'PENDING').length,
+    PREPARING: kots.filter(k => k.status === 'PREPARING').length,
+    READY:     kots.filter(k => k.status === 'READY').length,
+    COMPLETED: kots.filter(k => k.status === 'COMPLETED').length,
+  }
 
-  const handleReprint = useCallback((_id: number) => {
-    showToast('KOT reprinted 🖨️', 'kitchen');
-  }, [showToast]);
+  const displayed = filter === 'ALL' ? kots : kots.filter(k => k.status === filter)
 
-  const pendingOrders = liveOrders.filter(o => o.status === 'pending');
-  const readyOrders   = liveOrders.filter(o => o.status === 'ready');
-  const servedAllList = [...liveOrders.filter(o => o.status === 'served'), ...servedOrders];
-  const allOrders     = [...liveOrders, ...servedOrders];
-
-  const displayOrders: KotOrder[] = (() => {
-    switch (activeTab) {
-      case 'pending': return pendingOrders;
-      case 'ready':   return readyOrders;
-      case 'served':  return servedAllList;
-      default:        return allOrders;
-    }
-  })();
-
-  const tabs: { id: TabFilter; label: string; count: number }[] = [
-    { id: 'all',     label: 'All',     count: allOrders.length },
-    { id: 'pending', label: 'Pending', count: pendingOrders.length },
-    { id: 'ready',   label: 'Ready',   count: readyOrders.length },
-    { id: 'served',  label: 'Served',  count: servedAllList.length },
-  ];
+  const TABS: { id: Filter; label: string; color: string }[] = [
+    { id: 'ALL',       label: 'All',       color: 'var(--text2)' },
+    { id: 'PENDING',   label: 'Pending',   color: 'var(--amber)' },
+    { id: 'PREPARING', label: 'Cooking',   color: 'var(--blue)'  },
+    { id: 'READY',     label: 'Ready',     color: 'var(--green)' },
+    { id: 'COMPLETED', label: 'Served',    color: 'var(--text3)' },
+  ]
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
       {/* Header */}
-      <div className="bg-white border-b border-[#e2e6ec] px-4 h-12 flex items-center gap-3 shrink-0">
-        <span className="text-[15px] font-bold text-[#1e2433]">Kitchen Display System</span>
-        <span className="text-[12px] text-[#8a95a8]">Live KOT Orders</span>
-        <div className="flex-1" />
-        <div className="flex items-center gap-4 text-[12px]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-[9px] h-[9px] rounded-full bg-[#f59e0b] inline-block" />
-            Pending: <strong>{pendingOrders.length}</strong>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-[9px] h-[9px] rounded-full bg-[#27ae60] inline-block" />
-            Ready: <strong>{readyOrders.length}</strong>
+      <div style={{
+        height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12, flexShrink: 0,
+      }}>
+        <div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text1)' }}>Kitchen Display</span>
+          <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 8 }}>
+            {lastSync ? `Synced ${lastSync.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : 'Loading…'}
           </span>
         </div>
+
+        {/* Live counters */}
+        <div style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
+          {[
+            { label: 'Pending',   val: counts.PENDING,   color: 'var(--amber)' },
+            { label: 'Cooking',   val: counts.PREPARING, color: 'var(--blue)'  },
+            { label: 'Ready',     val: counts.READY,     color: 'var(--green)' },
+          ].map(({ label, val, color }) => (
+            <div key={label} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px',
+              borderRadius: 99, border: '1px solid var(--border)', background: 'var(--surface2)',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
+              <span style={{ fontSize: 11, color: 'var(--text2)' }}>{label}:</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color }}>{val}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
         <button
-          onClick={() => showToast('Orders refreshed', 'info')}
-          className="px-3.5 py-[7px] rounded-[8px] bg-[#e85c26] text-white text-[12px] font-semibold cursor-pointer flex items-center gap-1.5 hover:bg-[#c94d1d] transition-colors"
+          onClick={() => load(true)}
+          style={{
+            padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+            background: 'var(--gold-bg)', border: '1px solid var(--border)',
+            color: 'var(--gold)', cursor: 'pointer',
+          }}
         >
-          🔄 Refresh
+          ↻ Refresh
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex px-4 bg-white border-b border-[#e2e6ec] shrink-0">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-[18px] py-[11px] text-[13px] font-medium cursor-pointer border-b-[2.5px] -mb-px flex items-center gap-1.5 transition-all
-              ${activeTab === tab.id
-                ? 'text-[#e85c26] border-[#e85c26] font-semibold'
-                : 'text-[#8a95a8] border-transparent hover:text-[#1e2433]'}`}
-          >
+      {/* Filter tabs */}
+      <div style={{
+        display: 'flex', background: 'var(--bg2)', borderBottom: '1px solid var(--border)',
+        padding: '0 16px', flexShrink: 0,
+      }}>
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => setFilter(tab.id)} style={{
+            padding: '10px 16px', fontSize: 12, fontWeight: 600,
+            color: filter === tab.id ? tab.color : 'var(--text3)',
+            background: 'none', border: 'none', borderBottom: `2.5px solid ${filter === tab.id ? tab.color : 'transparent'}`,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: -1,
+          }}>
             {tab.label}
-            <span className={`px-1.5 py-[1px] rounded-full text-[10px] font-semibold
-              ${activeTab === tab.id ? 'bg-[#fff3ee] text-[#e85c26]' : 'bg-[#f0f2f5] text-[#8a95a8]'}`}>
-              {tab.count}
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
+              background: filter === tab.id ? tab.color : 'var(--surface2)',
+              color: filter === tab.id ? '#fff' : 'var(--text3)',
+            }}>
+              {counts[tab.id]}
             </span>
           </button>
         ))}
       </div>
 
       {/* KOT Grid */}
-      <div className="flex-1 overflow-y-auto p-3 flex flex-wrap gap-2.5 content-start">
-        {displayOrders.length === 0 ? (
-          <div className="w-full flex flex-col items-center justify-center text-[#8a95a8] py-16 gap-2">
-            <span className="text-[48px] opacity-30">👨‍🍳</span>
-            <span className="text-[14px] font-medium">No orders in this view</span>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignContent: 'flex-start' }}>
+        {loading ? (
+          // Skeleton cards
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ width: 230, height: 200, borderRadius: 12 }} />
+          ))
+        ) : displayed.length === 0 ? (
+          <div style={{
+            width: '100%', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: 12,
+          }}>
+            <span style={{ fontSize: 52, opacity: 0.25 }}>👨‍🍳</span>
+            <span style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500 }}>
+              {filter === 'ALL' ? 'No active orders' : `No ${filter.toLowerCase()} orders`}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text3)' }}>Orders will appear here as they come in</span>
           </div>
         ) : (
-          displayOrders.map(order => (
-            <KotCard
-              key={order.id}
-              order={order}
-              onMarkReady={handleMarkReady}
-              onMarkServed={handleMarkServed}
-              onReprint={handleReprint}
+          displayed.map(kot => (
+            <KOTCard
+              key={kot.id}
+              kot={kot}
+              onStatusChange={handleStatusChange}
+              onItemDone={handleItemDone}
             />
           ))
         )}
       </div>
-
-      <Toast toast={toast} />
     </div>
-  );
+  )
 }

@@ -97,20 +97,71 @@ enum EmployeeRole {
   CHEF
 }
 
+enum DiscountType {
+  FLAT
+  PERCENTAGE
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+// ─── Restaurant (Multi-tenant root) ───────────────────────────────────────────
+
+model Restaurant {
+  id          String  @id @default(uuid())
+  name        String
+  email       String  @unique
+  phone       String?
+  address     String?
+  city        String?
+  pincode     String?
+  logo        String?
+  gstNumber   String? @map("gst_number")
+  fssaiNumber String? @map("fssai_number")
+  taxRate     Decimal @default(0.05) @db.Decimal(5, 4) @map("tax_rate")
+  cgstRate    Decimal @default(0.025) @db.Decimal(5, 4) @map("cgst_rate")
+  sgstRate    Decimal @default(0.025) @db.Decimal(5, 4) @map("sgst_rate")
+  currency    String  @default("INR")
+  timezone    String  @default("Asia/Kolkata")
+  active      Boolean @default(true)
+
+  users        User[]
+  categories   Category[]
+  tables       RestaurantTable[]
+  orders       Order[]
+  employees    Employee[]
+  customers    Customer[]
+  inventory    InventoryItem[]
+  reservations Reservation[]
+  shifts       Shift[]
+  discounts    Discount[]
+  suppliers    Supplier[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("restaurants")
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String         @id @default(uuid())
-  email        String         @unique
-  passwordHash String         @map("password_hash")
-  role         Role           @default(WAITER)
-  employeeId   String?        @unique @map("employee_id")
-  employee     Employee?      @relation(fields: [employeeId], references: [id])
+  id           String        @id @default(uuid())
+  restaurantId String        @map("restaurant_id")
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id])
+  email        String
+  passwordHash String        @map("password_hash")
+  role         Role          @default(WAITER)
+  employeeId   String?       @unique @map("employee_id")
+  employee     Employee?     @relation(fields: [employeeId], references: [id])
   refreshTokens RefreshToken[]
-  orders       Order[]        @relation("CreatedBy")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  orders       Order[]       @relation("CreatedBy")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
 
+  @@unique([restaurantId, email])
   @@map("users")
 }
 
@@ -125,17 +176,32 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model OtpCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  used      Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("otp_codes")
+}
+
 // ─── Menu ─────────────────────────────────────────────────────────────────────
 
 model Category {
   id           String     @id @default(uuid())
-  name         String     @unique
+  restaurantId String     @map("restaurant_id")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
   displayOrder Int        @default(0) @map("display_order")
   active       Boolean    @default(true)
   menuItems    MenuItem[]
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
+  @@unique([restaurantId, name])
   @@map("categories")
 }
 
@@ -145,6 +211,7 @@ model MenuItem {
   category    Category    @relation(fields: [categoryId], references: [id])
   name        String
   price       Decimal     @db.Decimal(10, 2)
+  costPrice   Decimal     @default(0) @db.Decimal(10, 2) @map("cost_price")
   veg         Boolean     @default(false)
   description String?
   imageUrl    String?     @map("image_url")
@@ -161,7 +228,9 @@ model MenuItem {
 
 model RestaurantTable {
   id            String         @id @default(uuid())
-  number        Int            @unique
+  restaurantId  String         @map("restaurant_id")
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  number        Int
   capacity      Int
   section       String?
   status        TableStatus    @default(AVAILABLE)
@@ -170,6 +239,7 @@ model RestaurantTable {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
+  @@unique([restaurantId, number])
   @@map("restaurant_tables")
 }
 
@@ -190,6 +260,9 @@ model TableSession {
 
 model Order {
   id             String        @id @default(uuid())
+  restaurantId   String        @map("restaurant_id")
+  restaurant     Restaurant    @relation(fields: [restaurantId], references: [id])
+  billNo         Int?          @map("bill_no")
   tableSessionId String?       @map("table_session_id")
   tableSession   TableSession? @relation(fields: [tableSessionId], references: [id])
   tableId        String?       @map("table_id")
@@ -199,7 +272,10 @@ model Order {
   status         OrderStatus   @default(PENDING)
   subtotal       Decimal       @db.Decimal(10, 2)
   taxAmount      Decimal       @default(0) @db.Decimal(10, 2) @map("tax_amount")
+  cgstAmount     Decimal       @default(0) @db.Decimal(10, 2) @map("cgst_amount")
+  sgstAmount     Decimal       @default(0) @db.Decimal(10, 2) @map("sgst_amount")
   discountAmount Decimal       @default(0) @db.Decimal(10, 2) @map("discount_amount")
+  discountCode   String?       @map("discount_code")
   total          Decimal       @db.Decimal(10, 2)
   notes          String?
   createdBy      String?       @map("created_by")
@@ -285,20 +361,22 @@ model PaymentSplit {
 // ─── Reservations ─────────────────────────────────────────────────────────────
 
 model Reservation {
-  id         String            @id @default(uuid())
-  customerId String?           @map("customer_id")
-  customer   Customer?         @relation(fields: [customerId], references: [id])
-  tableId    String?           @map("table_id")
-  table      RestaurantTable?  @relation(fields: [tableId], references: [id])
-  date       DateTime          @db.Date
-  time       String
-  partySize  Int               @map("party_size")
-  status     ReservationStatus @default(PENDING)
-  notes      String?
-  guestName  String            @map("guest_name")
-  guestPhone String?           @map("guest_phone")
-  createdAt  DateTime          @default(now()) @map("created_at")
-  updatedAt  DateTime          @updatedAt @map("updated_at")
+  id           String            @id @default(uuid())
+  restaurantId String            @map("restaurant_id")
+  restaurant   Restaurant        @relation(fields: [restaurantId], references: [id])
+  customerId   String?           @map("customer_id")
+  customer     Customer?         @relation(fields: [customerId], references: [id])
+  tableId      String?           @map("table_id")
+  table        RestaurantTable?  @relation(fields: [tableId], references: [id])
+  date         DateTime          @db.Date
+  time         String
+  partySize    Int               @map("party_size")
+  status       ReservationStatus @default(PENDING)
+  notes        String?
+  guestName    String            @map("guest_name")
+  guestPhone   String?           @map("guest_phone")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
 
   @@map("reservations")
 }
@@ -307,6 +385,10 @@ model Reservation {
 
 model InventoryItem {
   id           String                 @id @default(uuid())
+  restaurantId String                 @map("restaurant_id")
+  restaurant   Restaurant             @relation(fields: [restaurantId], references: [id])
+  supplierId   String?                @map("supplier_id")
+  supplier     Supplier?              @relation(fields: [supplierId], references: [id])
   name         String
   category     String
   unit         String
@@ -333,18 +415,39 @@ model InventoryTransaction {
   @@map("inventory_transactions")
 }
 
+// ─── Suppliers ────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id           String          @id @default(uuid())
+  restaurantId String          @map("restaurant_id")
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id])
+  name         String
+  contactName  String?         @map("contact_name")
+  email        String?
+  phone        String?
+  address      String?
+  active       Boolean         @default(true)
+  inventory    InventoryItem[]
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  @@map("suppliers")
+}
+
 // ─── Employees ────────────────────────────────────────────────────────────────
 
 model Employee {
-  id        String       @id @default(uuid())
-  name      String
-  role      EmployeeRole
-  phone     String?
-  email     String?      @unique
-  active    Boolean      @default(true)
-  user      User?
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
+  id           String       @id @default(uuid())
+  restaurantId String       @map("restaurant_id")
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  name         String
+  role         EmployeeRole
+  phone        String?
+  email        String?
+  active       Boolean      @default(true)
+  user         User?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
   @@map("employees")
 }
@@ -353,9 +456,11 @@ model Employee {
 
 model Customer {
   id            String        @id @default(uuid())
+  restaurantId  String        @map("restaurant_id")
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
   name          String
-  phone         String?       @unique
-  email         String?       @unique
+  phone         String?
+  email         String?
   loyaltyPoints Int           @default(0) @map("loyalty_points")
   totalVisits   Int           @default(0) @map("total_visits")
   totalSpent    Decimal       @default(0) @db.Decimal(10, 2) @map("total_spent")
@@ -364,5 +469,46 @@ model Customer {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
+  @@unique([restaurantId, phone])
   @@map("customers")
+}
+
+// ─── Discounts ────────────────────────────────────────────────────────────────
+
+model Discount {
+  id           String       @id @default(uuid())
+  restaurantId String       @map("restaurant_id")
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  code         String
+  description  String?
+  type         DiscountType @default(FLAT)
+  value        Decimal      @db.Decimal(10, 2)
+  minOrder     Decimal      @default(0) @db.Decimal(10, 2) @map("min_order")
+  maxUses      Int?         @map("max_uses")
+  usedCount    Int          @default(0) @map("used_count")
+  active       Boolean      @default(true)
+  expiresAt    DateTime?    @map("expires_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@unique([restaurantId, code])
+  @@map("discounts")
+}
+
+// ─── Shifts ───────────────────────────────────────────────────────────────────
+
+model Shift {
+  id           String      @id @default(uuid())
+  restaurantId String      @map("restaurant_id")
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  openedById   String?     @map("opened_by_id")
+  closedById   String?     @map("closed_by_id")
+  openingCash  Decimal     @default(0) @db.Decimal(10, 2) @map("opening_cash")
+  closingCash  Decimal?    @db.Decimal(10, 2) @map("closing_cash")
+  status       ShiftStatus @default(OPEN)
+  openedAt     DateTime    @default(now()) @map("opened_at")
+  closedAt     DateTime?   @map("closed_at")
+  notes        String?
+
+  @@map("shifts")
 }

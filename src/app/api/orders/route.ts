@@ -1,14 +1,26 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate } from '@/lib/middleware'
-import { CreateOrderSchema } from '@/lib/validators'
 import { ok, created, validationError, badRequest, serverError, paginated } from '@/lib/response'
+import { z } from 'zod'
 
-const TAX_RATE = parseFloat(process.env.TAX_RATE ?? '0.05')
+const CreateOrderSchema = z.object({
+  tableId: z.string().uuid().optional(),
+  customerId: z.string().uuid().optional(),
+  orderType: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']).default('DINE_IN'),
+  notes: z.string().optional(),
+  discountCode: z.string().optional(),
+  items: z.array(z.object({
+    menuItemId: z.string().uuid(),
+    quantity: z.number().int().positive(),
+    notes: z.string().optional(),
+  })).min(1),
+})
 
 export async function GET(req: NextRequest) {
   try {
-    await authenticate(req)
+    const auth = await authenticate(req)
+    if (auth instanceof Response) return auth
 
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
@@ -19,24 +31,19 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(100, Number(searchParams.get('limit') ?? 20))
 
     const where = {
+      restaurantId: auth.restaurantId,
       ...(status && { status: status as never }),
       ...(tableId && { tableId }),
-      ...(from || to
-        ? {
-            createdAt: {
-              ...(from && { gte: new Date(from) }),
-              ...(to && { lte: new Date(to) }),
-            },
-          }
-        : {}),
+      ...(from || to ? { createdAt: { ...(from && { gte: new Date(from) }), ...(to && { lte: new Date(to) }) } } : {}),
     }
 
     const [orders, total] = await prisma.$transaction([
       prisma.order.findMany({
         where,
         include: {
-          items: { include: { menuItem: { select: { id: true, name: true, price: true } } } },
+          items: { include: { menuItem: { select: { id: true, name: true, price: true, veg: true } } } },
           payments: { select: { id: true, method: true, amount: true, status: true } },
+          customer: { select: { id: true, name: true, phone: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -60,12 +67,19 @@ export async function POST(req: NextRequest) {
     const parsed = CreateOrderSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const { tableId, customerId, orderType, notes, items } = parsed.data
+    const { tableId, customerId, orderType, notes, items, discountCode } = parsed.data
 
-    // Fetch menu items to get prices
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: auth.restaurantId },
+      select: { taxRate: true, cgstRate: true, sgstRate: true },
+    })
+    const taxRate = Number(restaurant?.taxRate ?? 0.05)
+    const cgstRate = Number(restaurant?.cgstRate ?? 0.025)
+    const sgstRate = Number(restaurant?.sgstRate ?? 0.025)
+
     const menuItemIds = items.map((i) => i.menuItemId)
     const menuItems = await prisma.menuItem.findMany({
-      where: { id: { in: menuItemIds }, available: true },
+      where: { id: { in: menuItemIds }, available: true, category: { restaurantId: auth.restaurantId } },
     })
 
     if (menuItems.length !== menuItemIds.length) {
@@ -74,10 +88,37 @@ export async function POST(req: NextRequest) {
 
     const priceMap = new Map(menuItems.map((m) => [m.id, Number(m.price)]))
     const subtotal = items.reduce((sum, i) => sum + priceMap.get(i.menuItemId)! * i.quantity, 0)
-    const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
-    const total = parseFloat((subtotal + taxAmount).toFixed(2))
 
-    // Find open table session if tableId provided
+    // Handle discount
+    let discountAmount = 0
+    let validDiscount = null
+    if (discountCode) {
+      const discount = await prisma.discount.findFirst({
+        where: {
+          restaurantId: auth.restaurantId,
+          code: discountCode.toUpperCase(),
+          active: true,
+          AND: [
+            { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+          ],
+        },
+      })
+      // Check maxUses in application code (can't compare two fields in Prisma without raw SQL)
+      const maxUsesOk = discount === null || discount.maxUses === null || discount.usedCount < discount.maxUses
+      if (discount && maxUsesOk && Number(discount.minOrder) <= subtotal) {
+        discountAmount = discount.type === 'FLAT'
+          ? Math.min(Number(discount.value), subtotal)
+          : parseFloat(((subtotal * Number(discount.value)) / 100).toFixed(2))
+        validDiscount = discount
+      }
+    }
+
+    const taxableAmount = subtotal - discountAmount
+    const cgstAmount = parseFloat((taxableAmount * cgstRate).toFixed(2))
+    const sgstAmount = parseFloat((taxableAmount * sgstRate).toFixed(2))
+    const taxAmount = cgstAmount + sgstAmount
+    const total = parseFloat((taxableAmount + taxAmount).toFixed(2))
+
     let tableSessionId: string | undefined
     if (tableId) {
       const session = await prisma.tableSession.findFirst({
@@ -86,9 +127,19 @@ export async function POST(req: NextRequest) {
       tableSessionId = session?.id
     }
 
+    // Get next bill number for this restaurant
+    const lastOrder = await prisma.order.findFirst({
+      where: { restaurantId: auth.restaurantId },
+      orderBy: { billNo: 'desc' },
+      select: { billNo: true },
+    })
+    const billNo = (lastOrder?.billNo ?? 0) + 1
+
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
+          restaurantId: auth.restaurantId,
+          billNo,
           tableId,
           tableSessionId,
           customerId,
@@ -96,6 +147,10 @@ export async function POST(req: NextRequest) {
           notes,
           subtotal,
           taxAmount,
+          cgstAmount,
+          sgstAmount,
+          discountAmount,
+          discountCode: validDiscount?.code,
           total,
           createdBy: auth.userId,
           status: 'PENDING',
@@ -108,11 +163,10 @@ export async function POST(req: NextRequest) {
             })),
           },
         },
-        include: { items: { include: { menuItem: { select: { id: true, name: true } } } } },
+        include: { items: { include: { menuItem: { select: { id: true, name: true, veg: true } } } } },
       })
 
-      // Auto-generate KOT
-      const kot = await tx.kOT.create({
+      await tx.kOT.create({
         data: {
           orderId: newOrder.id,
           tableId,
@@ -126,7 +180,6 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      // Update table status to OCCUPIED if table provided
       if (tableId) {
         await tx.restaurantTable.update({
           where: { id: tableId },
@@ -134,7 +187,14 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      return { ...newOrder, kotId: kot.id }
+      if (validDiscount) {
+        await tx.discount.update({
+          where: { id: validDiscount.id },
+          data: { usedCount: { increment: 1 } },
+        })
+      }
+
+      return newOrder
     })
 
     return created(order)

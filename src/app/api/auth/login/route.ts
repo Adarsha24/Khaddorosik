@@ -12,16 +12,19 @@ export async function POST(req: NextRequest) {
 
     const { email, password } = parsed.data
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { email },
-      include: { employee: { select: { name: true } } },
+      include: {
+        employee: { select: { name: true } },
+        restaurant: { select: { id: true, name: true, logo: true, taxRate: true, cgstRate: true, sgstRate: true, gstNumber: true, currency: true } },
+      },
     })
 
     if (!user || !(await comparePassword(password, user.passwordHash))) {
       return badRequest('Invalid email or password')
     }
 
-    const payload = { userId: user.id, role: user.role, email: user.email }
+    const payload = { userId: user.id, role: user.role, email: user.email, restaurantId: user.restaurantId }
     const accessToken = signAccess(payload)
     const refreshToken = signRefresh(payload)
 
@@ -36,7 +39,9 @@ export async function POST(req: NextRequest) {
         id: user.id,
         email: user.email,
         role: user.role,
+        restaurantId: user.restaurantId,
         name: user.employee?.name ?? email,
+        restaurant: user.restaurant,
       },
     })
   } catch (e) {

@@ -1,38 +1,38 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate } from '@/lib/middleware'
-import { TableStatusSchema } from '@/lib/validators'
-import { ok, notFound, validationError, serverError } from '@/lib/response'
+import { ok, notFound, serverError } from '@/lib/response'
+import { z } from 'zod'
 
 type Ctx = { params: Promise<{ id: string }> }
+
+const Schema = z.object({
+  status: z.enum(['AVAILABLE', 'OCCUPIED', 'RESERVED', 'CLEANING']),
+  waiterId: z.string().optional(),
+})
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await authenticate(req)
     if (auth instanceof Response) return auth
-
     const { id } = await params
-    const parsed = TableStatusSchema.safeParse(await req.json())
-    if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const table = await prisma.restaurantTable.findUnique({ where: { id } })
+    const parsed = Schema.safeParse(await req.json())
+    if (!parsed.success) return notFound('Invalid status')
+
+    const table = await prisma.restaurantTable.findFirst({ where: { id, restaurantId: auth.restaurantId } })
     if (!table) return notFound('Table')
 
     const { status, waiterId } = parsed.data
 
-    // When opening a table, create a new session
     if (status === 'OCCUPIED') {
       await prisma.$transaction([
         prisma.restaurantTable.update({ where: { id }, data: { status } }),
         prisma.tableSession.create({ data: { tableId: id, waiterId } }),
       ])
     } else if (status === 'AVAILABLE') {
-      // Close any open sessions
       await prisma.$transaction([
-        prisma.tableSession.updateMany({
-          where: { tableId: id, status: 'OPEN' },
-          data: { status: 'CLOSED', closedAt: new Date() },
-        }),
+        prisma.tableSession.updateMany({ where: { tableId: id, status: 'OPEN' }, data: { status: 'CLOSED', closedAt: new Date() } }),
         prisma.restaurantTable.update({ where: { id }, data: { status } }),
       ])
     } else {

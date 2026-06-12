@@ -1,23 +1,29 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate } from '@/lib/middleware'
-import { InventoryAdjustSchema } from '@/lib/validators'
-import { ok, notFound, badRequest, validationError, serverError } from '@/lib/response'
+import { ok, notFound, badRequest, serverError } from '@/lib/response'
+import { z } from 'zod'
 
 type Ctx = { params: Promise<{ id: string }> }
+
+const Schema = z.object({
+  quantity: z.number().positive(),
+  type: z.enum(['IN', 'OUT', 'ADJUSTMENT', 'WASTE']),
+  notes: z.string().optional(),
+})
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await authenticate(req)
     if (auth instanceof Response) return auth
-
     const { id } = await params
-    const parsed = InventoryAdjustSchema.safeParse(await req.json())
-    if (!parsed.success) return validationError(parsed.error.flatten())
+
+    const parsed = Schema.safeParse(await req.json())
+    if (!parsed.success) return badRequest('Invalid adjustment data')
 
     const { quantity, type, notes } = parsed.data
 
-    const item = await prisma.inventoryItem.findUnique({ where: { id } })
+    const item = await prisma.inventoryItem.findFirst({ where: { id, restaurantId: auth.restaurantId } })
     if (!item) return notFound('Inventory item')
 
     const delta = type === 'IN' ? quantity : -Math.abs(quantity)
@@ -32,10 +38,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }),
     ])
 
-    return ok({
-      ...updated,
-      isLowStock: Number(updated.currentStock) <= Number(updated.reorderLevel),
-    })
+    return ok({ ...updated, isLowStock: Number(updated.currentStock) <= Number(updated.reorderLevel) })
   } catch (e) {
     console.error('[POST /api/inventory/[id]/adjust]', e)
     return serverError()

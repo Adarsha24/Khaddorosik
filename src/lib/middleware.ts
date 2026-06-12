@@ -2,8 +2,6 @@ import { NextRequest } from 'next/server'
 import { extractBearer, verifyAccess, JwtPayload } from './auth'
 import { unauthorized, forbidden } from './response'
 
-// Returns JwtPayload on success, or a Response on failure.
-// Usage: const auth = await authenticate(req); if (auth instanceof Response) return auth;
 export async function authenticate(req: NextRequest): Promise<JwtPayload | Response> {
   const token = extractBearer(req.headers.get('authorization'))
   if (!token) return unauthorized()

@@ -8,6 +8,7 @@ export interface JwtPayload {
   userId: string
   role: string
   email: string
+  restaurantId: string
   iat?: number
   exp?: number
 }
@@ -38,5 +39,14 @@ export const extractBearer = (header: string | null): string | null => {
 export const refreshExpiresAt = (): Date => {
   const d = new Date()
   d.setDate(d.getDate() + 7)
+  return d
+}
+
+export const generateOtp = (): string =>
+  Math.floor(100000 + Math.random() * 900000).toString()
+
+export const otpExpiresAt = (): Date => {
+  const d = new Date()
+  d.setMinutes(d.getMinutes() + 10)
   return d
 }

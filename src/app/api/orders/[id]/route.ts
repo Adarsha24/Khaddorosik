@@ -1,23 +1,26 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate } from '@/lib/middleware'
-import { OrderStatusSchema } from '@/lib/validators'
-import { ok, notFound, validationError, serverError } from '@/lib/response'
+import { ok, notFound, serverError } from '@/lib/response'
+import { z } from 'zod'
 
 type Ctx = { params: Promise<{ id: string }> }
 
+const StatusSchema = z.object({ status: z.enum(['PENDING','CONFIRMED','PREPARING','READY','SERVED','PAID','CANCELLED']) })
+
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
-    await authenticate(req)
+    const auth = await authenticate(req)
+    if (auth instanceof Response) return auth
     const { id } = await params
 
-    const order = await prisma.order.findUnique({
-      where: { id },
+    const order = await prisma.order.findFirst({
+      where: { id, restaurantId: auth.restaurantId },
       include: {
-        items: { include: { menuItem: true, kotItems: { include: { kot: true } } } },
-        payments: true,
-        kots: { include: { kotItems: true } },
-        customer: { select: { id: true, name: true, phone: true } },
+        items: { include: { menuItem: { select: { id: true, name: true, price: true, veg: true } }, kotItems: true } },
+        payments: { include: { splits: true } },
+        kots: { include: { kotItems: { include: { orderItem: { include: { menuItem: true } } } } } },
+        customer: { select: { id: true, name: true, phone: true, loyaltyPoints: true } },
       },
     })
 
@@ -33,15 +36,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const auth = await authenticate(req)
     if (auth instanceof Response) return auth
-
     const { id } = await params
-    const parsed = OrderStatusSchema.safeParse(await req.json())
-    if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const order = await prisma.order.update({
-      where: { id },
-      data: { status: parsed.data.status },
-    })
+    const parsed = StatusSchema.safeParse(await req.json())
+    if (!parsed.success) return notFound('Invalid status')
+
+    const exists = await prisma.order.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true } })
+    if (!exists) return notFound('Order')
+
+    const order = await prisma.order.update({ where: { id }, data: { status: parsed.data.status } })
     return ok(order)
   } catch (e) {
     console.error('[PATCH /api/orders/[id]]', e)
