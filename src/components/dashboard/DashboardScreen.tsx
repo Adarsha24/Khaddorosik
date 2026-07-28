@@ -8,26 +8,62 @@ const fmtCur = (n: number) => `₹${new Intl.NumberFormat('en-IN').format(Math.r
 
 const STAT_COLS = ['var(--gold)', 'var(--green)', 'var(--blue)', 'var(--purple)']
 
-function StatCard({ label, value, sub, color, icon }: { label: string; value: string; sub?: string; color: string; icon: string }) {
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  sub,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+  sub?: string;
+}) {
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
-      padding: '20px 22px', position: 'relative', overflow: 'hidden',
-    }}>
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-        background: color, borderRadius: '14px 14px 0 0',
-      }} />
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>{label}</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text1)', letterSpacing: '-1px' }}>{value}</div>
-          {sub && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{sub}</div>}
+    <div
+      style={{
+        background: "#111827",
+        border: "1px solid #293548",
+        borderRadius: 14,
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          color: "#94A3B8",
+          marginBottom: 18,
+        }}
+      >
+        <span>{title}</span>
+
+        <div
+          style={{
+            color,
+          }}
+        >
+          {icon}
         </div>
-        <div style={{ fontSize: 28, opacity: 0.6 }}>{icon}</div>
       </div>
+
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: "white",
+        }}
+      >
+        {value}
+      </div>
+      {sub ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#94A3B8" }}>{sub}</div>
+      ) : null}
     </div>
-  )
+  );
 }
 
 function LiveBadge({ label, value, color }: { label: string; value: number; color: string }) {
@@ -111,7 +147,7 @@ export default function DashboardScreen({ toast }: { toast: (m: string, t: 'succ
   const otColors: Record<string, string> = { DINE_IN: 'var(--gold)', TAKEAWAY: 'var(--blue)', DELIVERY: 'var(--purple)' }
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: 20, background: 'var(--bg)' }}>
+    <div className="responsive-screen dashboard-screen" style={{ height: '100%', overflow: 'auto', padding: 20, background: 'var(--bg)' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
@@ -130,10 +166,10 @@ export default function DashboardScreen({ toast }: { toast: (m: string, t: 'succ
 
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-        <StatCard label="Today's Revenue" value={fmtCur(today.revenue)} sub={`${today.paid} orders paid`} color={STAT_COLS[0]} icon="💰" />
-        <StatCard label="This Week" value={fmtCur(week.revenue)} sub={`${week.orders} orders`} color={STAT_COLS[1]} icon="📅" />
-        <StatCard label="This Month" value={fmtCur(month.revenue)} sub={month.growth >= 0 ? `↑ ${month.growth}% vs last month` : `↓ ${Math.abs(month.growth)}% vs last month`} color={month.growth >= 0 ? STAT_COLS[1] : 'var(--red)'} icon="📈" />
-        <StatCard label="Avg Order Value" value={fmtCur(month.orders > 0 ? month.revenue / month.orders : 0)} sub={`${month.orders} orders this month`} color={STAT_COLS[3]} icon="🧾" />
+        <StatCard title="Today's Revenue" value={fmtCur(today.revenue)} color={STAT_COLS[0]} icon="💰" />
+        <StatCard title="This Week" value={fmtCur(week.revenue)} color={STAT_COLS[1]} icon="📅" />
+        <StatCard title="This Month" value={fmtCur(month.revenue)} sub={month.growth >= 0 ? `↑ ${month.growth}% vs last month` : `↓ ${Math.abs(month.growth)}% vs last month`} color={month.growth >= 0 ? STAT_COLS[1] : 'var(--red)'} icon="📈" />
+        <StatCard title="Avg Order Value" value={fmtCur(month.orders > 0 ? month.revenue / month.orders : 0)} color={STAT_COLS[3]} icon="🧾" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>

@@ -68,7 +68,7 @@ export default function TablesScreen({ toast, onNavigate }: Props) {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="responsive-screen tables-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
       {/* Header */}
       <div style={{

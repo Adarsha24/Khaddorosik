@@ -8,11 +8,12 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
-    await authenticate(req)
+    const auth = await authenticate(req)
+    if (auth instanceof Response) return auth
     const { id } = await params
 
-    const item = await prisma.inventoryItem.findUnique({
-      where: { id },
+    const item = await prisma.inventoryItem.findFirst({
+      where: { id, restaurantId: auth.restaurantId },
       include: {
         transactions: {
           orderBy: { createdAt: 'desc' },
@@ -37,7 +38,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const parsed = InventoryItemSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const item = await prisma.inventoryItem.update({ where: { id }, data: parsed.data })
+    const existing = await prisma.inventoryItem.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true } })
+    if (!existing) return notFound('Inventory item')
+
+    const item = await prisma.inventoryItem.update({ where: { id: existing.id }, data: parsed.data })
     return ok(item)
   } catch (e) {
     console.error('[PUT /api/inventory/[id]]', e)

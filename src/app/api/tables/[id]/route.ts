@@ -8,11 +8,12 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
-    await authenticate(req)
+    const auth = await authenticate(req)
+    if (auth instanceof Response) return auth
     const { id } = await params
 
-    const table = await prisma.restaurantTable.findUnique({
-      where: { id },
+    const table = await prisma.restaurantTable.findFirst({
+      where: { id, restaurantId: auth.restaurantId },
       include: {
         tableSessions: {
           where: { status: 'OPEN' },
@@ -49,7 +50,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const parsed = TableSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const table = await prisma.restaurantTable.update({ where: { id }, data: parsed.data })
+    const existing = await prisma.restaurantTable.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true } })
+    if (!existing) return notFound('Table')
+
+    const table = await prisma.restaurantTable.update({ where: { id: existing.id }, data: parsed.data })
     return ok(table)
   } catch (e) {
     console.error('[PUT /api/tables/[id]]', e)

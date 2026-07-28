@@ -77,7 +77,7 @@ export default function CRMScreen({ toast }: Props) {
   }, [customers])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--surface3)' }}>
+    <div className="responsive-screen crm-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--surface3)' }}>
       {/* Header */}
       <div style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 8, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text1)' }}>Customer Relationship Management</span>

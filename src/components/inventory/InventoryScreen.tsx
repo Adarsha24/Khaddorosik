@@ -54,7 +54,7 @@ export default function InventoryScreen({ toast }: Props) {
   }, [items, search, categoryFilter, lowStockOnly])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="responsive-screen inventory-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 16px', gap: 8, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text1)' }}>Inventory Management</span>

@@ -12,6 +12,7 @@ import DashboardScreen   from '@/components/dashboard/DashboardScreen'
 import PaymentModal      from '@/components/billing/PaymentModal'
 import Topbar            from '@/components/billing/Topbar'
 import Sidebar           from '@/components/billing/Sidebar'
+import PayrollScreen     from '@/components/payroll/PayrollScreen'
 import LoginScreen       from '@/components/auth/LoginScreen'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
@@ -74,13 +75,13 @@ function POSApp() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div className="pos-app" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <Topbar />
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="pos-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar active={screen} onNavigate={setScreen} />
 
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+        <main className="pos-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
           {screen === 'dashboard'   && <DashboardScreen   toast={toast} />}
           {screen === 'billing'     && <BillingScreen     toast={toast} onPayment={openPayment} onNavigate={(id) => setScreen(id as ScreenId)} />}
           {screen === 'tables'      && <TablesScreen      toast={toast} onNavigate={(id) => setScreen(id as ScreenId)} />}
@@ -90,6 +91,7 @@ function POSApp() {
           {screen === 'inventory'   && <InventoryScreen   toast={toast} />}
           {screen === 'employees'   && <EmployeesScreen   toast={toast} />}
           {screen === 'crm'         && <CRMScreen         toast={toast} />}
+          {screen === 'payroll'     && <PayrollScreen  />}
         </main>
       </div>
 

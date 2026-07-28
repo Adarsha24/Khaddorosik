@@ -301,7 +301,7 @@ export default function ReservationScreen({ toast }: Props) {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="responsive-screen reservation-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
       {/* Header */}
       <div style={{

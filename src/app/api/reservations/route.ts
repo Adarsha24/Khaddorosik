@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate } from '@/lib/middleware'
-import { ok, created, validationError, serverError, paginated } from '@/lib/response'
+import { ok, created, validationError, badRequest, serverError, paginated } from '@/lib/response'
 import { z } from 'zod'
 
 const ReservationSchema = z.object({
@@ -60,6 +60,22 @@ export async function POST(req: NextRequest) {
 
     const parsed = ReservationSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
+
+    if (parsed.data.tableId) {
+      const table = await prisma.restaurantTable.findFirst({
+        where: { id: parsed.data.tableId, restaurantId: auth.restaurantId },
+        select: { id: true },
+      })
+      if (!table) return badRequest('Selected table does not belong to this restaurant')
+    }
+
+    if (parsed.data.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: parsed.data.customerId, restaurantId: auth.restaurantId },
+        select: { id: true },
+      })
+      if (!customer) return badRequest('Selected customer does not belong to this restaurant')
+    }
 
     const reservation = await prisma.reservation.create({
       data: { ...parsed.data, restaurantId: auth.restaurantId, date: new Date(parsed.data.date), status: 'PENDING' },

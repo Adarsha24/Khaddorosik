@@ -59,7 +59,7 @@ export default function ReportsScreen({ toast }: Props) {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="responsive-screen reports-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
         height: 52, background: 'var(--surface)', borderBottom: '1px solid var(--border)',

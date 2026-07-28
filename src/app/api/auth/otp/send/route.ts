@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { generateOtp, otpExpiresAt } from '@/lib/auth'
+import { generateOtp, hashPassword, otpExpiresAt } from '@/lib/auth'
 import { sendOtpEmail } from '@/lib/email'
 import { ok, badRequest, serverError } from '@/lib/response'
 import { z } from 'zod'
@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
     })
     if (recentCount >= 3) return badRequest('Too many OTP requests. Please wait 10 minutes.')
 
-    const code = generateOtp()
+    const code = await generateOtp()
     await prisma.otpCode.create({
-      data: { email, code, expiresAt: otpExpiresAt() },
+      data: { email, code: await hashPassword(code), expiresAt: otpExpiresAt() },
     })
 
     await sendOtpEmail(email, code, user.restaurant.name)

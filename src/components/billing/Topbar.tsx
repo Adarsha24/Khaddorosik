@@ -23,13 +23,13 @@ export default function Topbar() {
   const rest = user?.restaurant
 
   return (
-    <header style={{
+    <header className="pos-topbar" style={{
       height: 54, background: 'var(--bg2)', borderBottom: '1px solid var(--border)',
       display: 'flex', alignItems: 'center', padding: '0 16px', gap: 0,
       flexShrink: 0, zIndex: 50,
     }}>
       {/* Brand */}
-      <div style={{ paddingRight: 16, borderRight: '1px solid var(--border)', marginRight: 16 }}>
+      <div className="pos-brand" style={{ paddingRight: 16, borderRight: '1px solid var(--border)', marginRight: 16 }}>
         <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text1)', letterSpacing: '-0.5px' }}>
           Khaddo<span style={{ color: 'var(--gold)' }}>রসিক</span>
         </span>
@@ -37,7 +37,7 @@ export default function Topbar() {
       </div>
 
       {/* Restaurant info */}
-      <div>
+      <div className="pos-restaurant">
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text1)' }}>{rest?.name ?? '—'}</div>
         <div style={{ fontSize: 11, color: 'var(--text3)' }}>
           {rest?.address ? rest.address.split(',')[0] : 'Restaurant'} · {user?.role?.replace('_', ' ')}
@@ -48,14 +48,14 @@ export default function Topbar() {
 
       {/* GST badge */}
       {rest?.gstNumber && (
-        <div style={{ padding: '4px 12px', background: 'var(--gold-bg)', border: '1px solid var(--border)', borderRadius: 8, marginRight: 12 }}>
+        <div className="pos-gst" style={{ padding: '4px 12px', background: 'var(--gold-bg)', border: '1px solid var(--border)', borderRadius: 8, marginRight: 12 }}>
           <span style={{ fontSize: 10, color: 'var(--text3)' }}>GSTIN </span>
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', fontFamily: "'DM Mono', monospace" }}>{rest.gstNumber}</span>
         </div>
       )}
 
       {/* Clock */}
-      <div style={{ textAlign: 'right', marginRight: 16, paddingRight: 16, borderRight: '1px solid var(--border)' }}>
+      <div className="pos-clock" style={{ textAlign: 'right', marginRight: 16, paddingRight: 16, borderRight: '1px solid var(--border)' }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text1)', fontFamily: "'DM Mono', monospace", letterSpacing: '1px' }}>{time}</div>
         <div style={{ fontSize: 10, color: 'var(--text3)' }}>{date}</div>
       </div>

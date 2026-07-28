@@ -132,7 +132,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   ];
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="billing-screen flex flex-1 overflow-hidden">
       {/* ── LEFT: Menu panel ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tab bar — inline styles to avoid Tailwind purge on Vercel */}
@@ -324,7 +324,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
           <>
             {/* Toolbar */}
             <div
-              className="flex items-center gap-2 px-3.5 py-2.5 flex-shrink-0"
+              className="billing-toolbar flex items-center gap-2 px-3.5 py-2.5 flex-shrink-0"
               style={{
                 background: "var(--surface)",
                 borderBottom: "1px solid var(--border)",
@@ -595,7 +595,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
 
       {/* ── RIGHT: Order panel ── */}
       <div
-        className="w-[292px] flex flex-col flex-shrink-0"
+        className="billing-order-panel w-[292px] flex flex-col flex-shrink-0"
         style={{
           background: "var(--surface)",
           borderLeft: "1px solid var(--border)",

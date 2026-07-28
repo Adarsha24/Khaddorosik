@@ -11,9 +11,10 @@ type Props = {
   onPay: () => void;
 };
 
-export default function OrderPanel({ cart, onAdd, onRemove, onClear, onPay }: Props) {
-  const [orderType, setOrderType] = useState<'dinein' | 'takeaway' | 'delivery'>('dinein');
 
+
+export default function OrderPanel({ cart, onAdd, onRemove, onClear, onPay }: Props) {
+ const [orderType, setOrderType] = useState<'dinein' | 'takeaway' | 'delivery'>('dinein');
   const subtotal = useMemo(() => cart.reduce((s, i) => s + i.price * i.qty, 0), [cart]);
   const discount = Math.round(subtotal * 0.05);
   const taxBase  = subtotal - discount;

@@ -1,8 +1,16 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!
+function requiredSecret(name: 'JWT_ACCESS_SECRET' | 'JWT_REFRESH_SECRET'): string {
+  const value = process.env[name]
+  if (!value || value.length < 32) {
+    throw new Error(`${name} must be configured with at least 32 characters`)
+  }
+  return value
+}
+
+const ACCESS_SECRET = requiredSecret('JWT_ACCESS_SECRET')
+const REFRESH_SECRET = requiredSecret('JWT_REFRESH_SECRET')
 
 export interface JwtPayload {
   userId: string
@@ -42,8 +50,10 @@ export const refreshExpiresAt = (): Date => {
   return d
 }
 
-export const generateOtp = (): string =>
-  Math.floor(100000 + Math.random() * 900000).toString()
+export const generateOtp = async (): Promise<string> => {
+  const { randomInt } = await import('node:crypto')
+  return randomInt(100000, 1_000_000).toString()
+}
 
 export const otpExpiresAt = (): Date => {
   const d = new Date()

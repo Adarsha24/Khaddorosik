@@ -68,7 +68,7 @@ export default function KitchenScreen({ toast }: Props) {
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div className="responsive-screen kitchen-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
       {/* Header */}
       <div style={{

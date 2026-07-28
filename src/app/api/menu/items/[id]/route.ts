@@ -8,10 +8,11 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
-    await authenticate(req)
+    const auth = await authenticate(req)
+    if (auth instanceof Response) return auth
     const { id } = await params
-    const item = await prisma.menuItem.findUnique({
-      where: { id },
+    const item = await prisma.menuItem.findFirst({
+      where: { id, category: { restaurantId: auth.restaurantId } },
       include: { category: true },
     })
     if (!item) return notFound('Menu item')
@@ -31,8 +32,11 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const parsed = MenuItemSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
+    const existing = await prisma.menuItem.findFirst({ where: { id, category: { restaurantId: auth.restaurantId } }, select: { id: true } })
+    if (!existing) return notFound('Menu item')
+
     const item = await prisma.menuItem.update({
-      where: { id },
+      where: { id: existing.id },
       data: parsed.data,
       include: { category: { select: { id: true, name: true } } },
     })
@@ -49,7 +53,10 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     if (auth instanceof Response) return auth
 
     const { id } = await params
-    await prisma.menuItem.update({ where: { id }, data: { available: false } })
+    const existing = await prisma.menuItem.findFirst({ where: { id, category: { restaurantId: auth.restaurantId } }, select: { id: true } })
+    if (!existing) return notFound('Menu item')
+
+    await prisma.menuItem.update({ where: { id: existing.id }, data: { available: false } })
     return ok(null, 'Item deactivated')
   } catch (e) {
     console.error('[DELETE /api/menu/items/[id]]', e)

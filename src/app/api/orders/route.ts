@@ -69,6 +69,22 @@ export async function POST(req: NextRequest) {
 
     const { tableId, customerId, orderType, notes, items, discountCode } = parsed.data
 
+    if (tableId) {
+      const table = await prisma.restaurantTable.findFirst({
+        where: { id: tableId, restaurantId: auth.restaurantId },
+        select: { id: true },
+      })
+      if (!table) return badRequest('Selected table does not belong to this restaurant')
+    }
+
+    if (customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: customerId, restaurantId: auth.restaurantId },
+        select: { id: true },
+      })
+      if (!customer) return badRequest('Selected customer does not belong to this restaurant')
+    }
+
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: auth.restaurantId },
       select: { taxRate: true, cgstRate: true, sgstRate: true },

@@ -8,11 +8,12 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
-    await authenticate(req)
+    const auth = await authenticate(req)
+    if (auth instanceof Response) return auth
     const { id } = await params
 
-    const customer = await prisma.customer.findUnique({
-      where: { id },
+    const customer = await prisma.customer.findFirst({
+      where: { id, restaurantId: auth.restaurantId },
       include: {
         orders: {
           where: { status: 'PAID' },
@@ -44,7 +45,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const parsed = CustomerSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const customer = await prisma.customer.update({ where: { id }, data: parsed.data })
+    const existing = await prisma.customer.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true } })
+    if (!existing) return notFound('Customer')
+
+    const customer = await prisma.customer.update({ where: { id: existing.id }, data: parsed.data })
     return ok(customer)
   } catch (e) {
     console.error('[PUT /api/customers/[id]]', e)
@@ -61,8 +65,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const { points } = await req.json()
     if (typeof points !== 'number') return ok(null)
 
+    const existing = await prisma.customer.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true } })
+    if (!existing) return notFound('Customer')
+
     const customer = await prisma.customer.update({
-      where: { id },
+      where: { id: existing.id },
       data: { loyaltyPoints: { increment: points } },
     })
     return ok(customer)

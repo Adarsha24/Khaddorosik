@@ -9,6 +9,8 @@ const TAX_RATE = parseFloat(process.env.TAX_RATE ?? '0.05')
 type Ctx = { params: Promise<{ id: string; itemId: string }> }
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
+
+  debugger; 
   try {
     const auth = await authenticate(req)
     if (auth instanceof Response) return auth
@@ -17,7 +19,11 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const parsed = UpdateItemSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const item = await prisma.orderItem.findFirst({ where: { id: itemId, orderId: id } })
+    const order = await prisma.order.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true, status: true } })
+    if (!order) return notFound('Order')
+    if (['PAID', 'CANCELLED'].includes(order.status)) return badRequest('Cannot modify a closed order')
+
+    const item = await prisma.orderItem.findFirst({ where: { id: itemId, orderId: order.id } })
     if (!item) return notFound('Order item')
 
     await prisma.orderItem.update({
@@ -26,18 +32,18 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     })
 
     // Recalculate order totals
-    const allItems = await prisma.orderItem.findMany({ where: { orderId: id } })
+    const allItems = await prisma.orderItem.findMany({ where: { orderId: order.id } })
     const subtotal = allItems.reduce((s, i) => s + Number(i.unitPrice) * i.quantity, 0)
     const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
     const total = parseFloat((subtotal + taxAmount).toFixed(2))
 
-    const order = await prisma.order.update({
-      where: { id },
+    const updatedOrder = await prisma.order.update({
+      where: { id: order.id },
       data: { subtotal, taxAmount, total },
       include: { items: true },
     })
 
-    return ok(order)
+    return ok(updatedOrder)
   } catch (e) {
     console.error('[PUT /api/orders/[id]/items/[itemId]]', e)
     return serverError()
@@ -51,11 +57,13 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
     const { id, itemId } = await params
 
-    const item = await prisma.orderItem.findFirst({ where: { id: itemId, orderId: id } })
+    const order = await prisma.order.findFirst({ where: { id, restaurantId: auth.restaurantId } })
+    if (!order) return notFound('Order')
+
+    const item = await prisma.orderItem.findFirst({ where: { id: itemId, orderId: order.id } })
     if (!item) return notFound('Order item')
 
-    const order = await prisma.order.findUnique({ where: { id } })
-    if (!order || ['PAID', 'CANCELLED'].includes(order.status)) {
+    if (['PAID', 'CANCELLED'].includes(order.status)) {
       return badRequest('Cannot modify a closed order')
     }
 
@@ -63,10 +71,10 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       await tx.kOTItem.deleteMany({ where: { orderItemId: itemId } })
       await tx.orderItem.delete({ where: { id: itemId } })
 
-      const remaining = await tx.orderItem.findMany({ where: { orderId: id } })
+      const remaining = await tx.orderItem.findMany({ where: { orderId: order.id } })
       const subtotal = remaining.reduce((s, i) => s + Number(i.unitPrice) * i.quantity, 0)
       const taxAmount = parseFloat((subtotal * TAX_RATE).toFixed(2))
-      await tx.order.update({ where: { id }, data: { subtotal, taxAmount, total: subtotal + taxAmount } })
+      await tx.order.update({ where: { id: order.id }, data: { subtotal, taxAmount, total: subtotal + taxAmount } })
     })
 
     return ok(null, 'Item removed from order')

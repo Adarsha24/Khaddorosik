@@ -1,20 +1,66 @@
 'use client'
+
 import { useAuth } from '@/context/AuthContext'
 
 export type ScreenId =
-  | 'dashboard' | 'billing' | 'tables' | 'kitchen'
-  | 'reservation' | 'reports' | 'inventory' | 'employees' | 'crm'
+  | 'dashboard'
+  | 'billing'
+  | 'tables'
+  | 'kitchen'
+  | 'reservation'
+  | 'reports'
+  | 'inventory'
+  | 'employees'
+  | 'crm'
+  | 'payroll'
 
-const NAV: { id: ScreenId; icon: string; label: string; roles?: string[] }[] = [
-  { id: 'dashboard',   icon: '📊', label: 'Dashboard' },
-  { id: 'billing',     icon: '🧾', label: 'Billing' },
-  { id: 'tables',      icon: '🪑', label: 'Tables' },
-  { id: 'kitchen',     icon: '👨‍🍳', label: 'Kitchen' },
+type NavItem = {
+  id: ScreenId
+  icon: string
+  label: string
+  roles?: string[]
+}
+
+const NAV: NavItem[] = [
+  { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+  { id: 'billing', icon: '🧾', label: 'Billing' },
+  { id: 'tables', icon: '🪑', label: 'Tables' },
+  { id: 'kitchen', icon: '👨‍🍳', label: 'Kitchen' },
   { id: 'reservation', icon: '📅', label: 'Reserve' },
-  { id: 'reports',     icon: '📈', label: 'Reports', roles: ['SUPER_ADMIN', 'MANAGER', 'CASHIER'] },
-  { id: 'inventory',   icon: '📦', label: 'Stock',   roles: ['SUPER_ADMIN', 'MANAGER'] },
-  { id: 'employees',   icon: '👥', label: 'Staff',   roles: ['SUPER_ADMIN', 'MANAGER'] },
-  { id: 'crm',         icon: '🤝', label: 'CRM' },
+
+  {
+    id: 'reports',
+    icon: '📈',
+    label: 'Reports',
+    roles: ['SUPER_ADMIN', 'MANAGER', 'CASHIER']
+  },
+
+  {
+    id: 'inventory',
+    icon: '📦',
+    label: 'Stock',
+    roles: ['SUPER_ADMIN', 'MANAGER']
+  },
+
+  {
+    id: 'employees',
+    icon: '👥',
+    label: 'Staff',
+    roles: ['SUPER_ADMIN', 'MANAGER']
+  },
+
+  {
+    id: 'crm',
+    icon: '🤝',
+    label: 'CRM'
+  },
+
+  {
+    id: 'payroll',
+    icon: '💰',
+    label: 'Payroll',
+    // roles: ['SUPER_ADMIN', 'MANAGER']
+  }
 ]
 
 type Props = { active: ScreenId; onNavigate: (s: ScreenId) => void }
@@ -27,7 +73,7 @@ export default function Sidebar({ active, onNavigate }: Props) {
   const filtered = NAV.filter(n => !n.roles || n.roles.includes(user?.role ?? ''))
 
   return (
-    <aside style={{
+    <aside className="pos-sidebar" style={{
       width: 64, background: 'var(--bg2)', borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       padding: '10px 0', gap: 2, flexShrink: 0, overflow: 'hidden',

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { signAccess, signRefresh, refreshExpiresAt } from '@/lib/auth'
+import { comparePassword, signAccess, signRefresh, refreshExpiresAt } from '@/lib/auth'
 import { ok, badRequest, serverError } from '@/lib/response'
 import { z } from 'zod'
 
@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
     const { email, code } = parsed.data
 
     const otp = await prisma.otpCode.findFirst({
-      where: { email, code, used: false, expiresAt: { gte: new Date() } },
+      where: { email, used: false, expiresAt: { gte: new Date() } },
       orderBy: { createdAt: 'desc' },
     })
-    if (!otp) return badRequest('Invalid or expired OTP')
+    if (!otp || !(await comparePassword(code, otp.code))) return badRequest('Invalid or expired OTP')
 
     await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } })
 
