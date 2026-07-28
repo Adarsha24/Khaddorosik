@@ -1,29 +1,27 @@
-import type { Metadata } from 'next';
-// TypeScript may complain about side-effect imports for global CSS in some configs.
+import type { Metadata } from 'next'
 // @ts-ignore
-import './globals.css';
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Petpooja – Fine Dine POS',
-  description: 'Fine Dine Point of Sale System',
-};
+  title: 'Khaddorosik POS — Restaurant Management',
+  description: 'Multi-tenant Restaurant POS · Orders · Kitchen · Billing · Inventory · Reports',
+  icons: { icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" },
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body
-        className="bg-[#f0f2f5] text-[#1e2433]"
-        style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '13px' }}
-      >
+      <body style={{ fontFamily: "'Inter', 'DM Sans', system-ui, sans-serif" }}>
         {children}
       </body>
     </html>
-  );
+  )
 }

@@ -15,7 +15,7 @@ export const EMPLOYEES: Employee[] = [
 ];
 
 export const CUSTOMERS: Customer[] = [
-  { name: 'Rahul Khanna',   phone: '+91 98765 43210', visits: 24, spent: '₹38,400', last: 'Today',        pts: 1240, rating: '4.8', tag: 'loyal'    },
+  { name: 'Anu Das',   phone: '+91 98765 43210', visits: 24, spent: '₹38,400', last: 'Today',        pts: 1240, rating: '4.8', tag: 'loyal'    },
   { name: 'Sneha Mehta',    phone: '+91 90001 12345', visits: 8,  spent: '₹11,200', last: '2 days ago',   pts: 560,  rating: '5.0', tag: 'vip'      },
   { name: 'Arjun Nair',     phone: '+91 87654 32109', visits: 2,  spent: '₹2,800',  last: '1 week ago',   pts: 140,  rating: '4.0', tag: 'new'      },
   { name: 'Kavya Reddy',    phone: '+91 76543 21098', visits: 18, spent: '₹26,600', last: 'Yesterday',    pts: 1330, rating: '4.7', tag: 'loyal'    },
