@@ -189,7 +189,7 @@ export default function TablesScreen({ toast, onNavigate }: Props) {
         <TableDetailSidebar
           table={selected}
           onStatusChange={handleStatusChange}
-          onNavigateBilling={() => onNavigate('billing')}
+          onNavigateBilling={(table) => onNavigate(`/billing?tableId=${encodeURIComponent(table.id)}&tableNo=${encodeURIComponent(String(table.number))}`)}
         />
       </div>
 

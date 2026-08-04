@@ -5,7 +5,7 @@ import { tables as tablesApi } from '@/lib/api'
 interface Props {
   table: ApiTable | null
   onStatusChange: (id: string, status: string) => Promise<void>
-  onNavigateBilling: () => void
+  onNavigateBilling: (table: ApiTable) => void
 }
 
 const STATUS_ACTIONS: { status: string; label: string; color: string; bg: string }[] = [
@@ -116,14 +116,14 @@ export default function TableDetailSidebar({ table, onStatusChange, onNavigateBi
       {/* Action buttons */}
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {table.status === 'OCCUPIED' && (
-          <button onClick={onNavigateBilling} style={{
+          <button onClick={() => onNavigateBilling(table)} style={{
             padding: '10px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
             background: 'var(--gold)', color: '#0B1120', border: 'none', cursor: 'pointer',
           }}>
             💰 Open Billing
           </button>
         )}
-        <button onClick={onNavigateBilling} style={{
+        <button onClick={() => onNavigateBilling(table)} style={{
           padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 600,
           background: 'var(--surface2)', border: '1px solid var(--border)',
           color: 'var(--text2)', cursor: 'pointer',

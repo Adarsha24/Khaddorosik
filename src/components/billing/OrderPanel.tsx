@@ -9,9 +9,10 @@ type Props = {
   onRemove: (id: number) => void;
   onClear: () => void;
   onPay: () => void;
+  tableLabel?: string;
 };
 
-export default function OrderPanel({ cart, onAdd, onRemove, onClear, onPay }: Props) {
+export default function OrderPanel({ cart, onAdd, onRemove, onClear, onPay, tableLabel }: Props) {
   const [orderType, setOrderType] = useState<'dinein' | 'takeaway' | 'delivery'>('dinein');
 
   const subtotal = useMemo(() => cart.reduce((s, i) => s + i.price * i.qty, 0), [cart]);
@@ -29,7 +30,7 @@ export default function OrderPanel({ cart, onAdd, onRemove, onClear, onPay }: Pr
         <span className="text-base text-[#80908a]">🛒</span>
         <span className="text-[14px] font-bold text-[#20302d] flex-1">Current Order</span>
         <button className="bg-[#e7f2f2] text-[#2f6f73] rounded-[6px] px-[9px] py-[3px] text-[11px] font-bold cursor-pointer hover:bg-[#d7ebeb] transition-colors">
-          🪑 Table 7
+          {tableLabel ?? 'Select Table'}
         </button>
       </div>
 

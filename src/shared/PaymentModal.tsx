@@ -7,6 +7,7 @@ interface Props {
   cart: CartItem[];
   onClose: () => void;
   onConfirm: () => void;
+  contextLabel?: string;
 }
 
 const METHODS = [
@@ -20,7 +21,7 @@ const METHODS = [
 
 const TIPS = ['No Tip', '5%', '10%', 'Custom'];
 
-export default function PaymentModal({ cart, onClose, onConfirm }: Props) {
+export default function PaymentModal({ cart, onClose, onConfirm, contextLabel }: Props) {
   const [method, setMethod] = useState('cash');
   const [tip, setTip] = useState('No Tip');
 
@@ -67,7 +68,7 @@ export default function PaymentModal({ cart, onClose, onConfirm }: Props) {
             ₹{grand.toLocaleString('en-IN')}
           </div>
           <div className="text-center text-[12px] mt-1" style={{ color: 'var(--text3)' }}>
-            Table 7 • Rahul Khanna • 3 guests
+            {contextLabel ?? 'Walk-in order'}
           </div>
           <div className="flex justify-center gap-4 mt-2 text-[11px]" style={{ color: 'var(--text3)' }}>
             <span>Subtotal: ₹{sub.toLocaleString('en-IN')}</span>

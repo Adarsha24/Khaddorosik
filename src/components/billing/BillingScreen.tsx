@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Printer,
@@ -11,12 +12,19 @@ import {
   ShoppingCart,
   Pencil,
 } from "lucide-react";
-import { menu, orders, kot, type ApiMenuItem, type ApiCategory, type ApiKOT } from "@/lib/api";
+import {
+  menu,
+  orders,
+  kot,
+  type ApiMenuItem,
+  type ApiCategory,
+  type ApiKOT,
+} from "@/lib/api";
 import type { CartItem, ToastType } from "@/types";
 
 interface Props {
   toast: (msg: string, type: ToastType) => void;
-  onPayment: (cart: CartItem[], orderId?: string) => void;
+  onPayment: (cart: CartItem[], orderId?: string, contextLabel?: string) => void;
   onNavigate: (id: string) => void;
 }
 
@@ -30,6 +38,10 @@ const FILTER_LABELS: Record<string, string> = {
 };
 
 export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
+  const searchParams = useSearchParams();
+  const tableId = searchParams.get("tableId") ?? undefined;
+  const tableNo = searchParams.get("tableNo");
+  const tableLabel = tableNo ? `Table ${tableNo}` : "Select Table";
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("all");
   const [filter, setFilter] = useState("all");
@@ -41,35 +53,83 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   const [kotOrders, setKotOrders] = useState<ApiKOT[]>([]);
   const [orderId, setOrderId] = useState<string | undefined>();
   const [kotLoading, setKotLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  useEffect(() => {
+    setActiveTab(0);
+    setSearch("");
+    setCat("all");
+    setFilter("all");
+    setCart({});
+    setOrderId(undefined);
+  }, [tableId, tableNo]);
 
   // Fetch menu data on mount
+  // useEffect(() => {
+  //   menu.items({ limit: '200' }).then(res => setMenuItems(res.data)).catch(() => {});
+  //   menu.categories().then(setCategories).catch(() => {});
+  // }, []);
+
+  // region testing add
+
   useEffect(() => {
-    menu.items({ limit: '200' }).then(res => setMenuItems(res.data)).catch(() => {});
-    menu.categories().then(setCategories).catch(() => {});
+    console.log("BillingScreen mounted");
+
+    menu
+      .items({ limit: "200" })
+      .then((res) => {
+        console.log("Items loaded", res);
+        setMenuItems(res.data);
+      })
+      .catch((e) => console.error("Items error", e));
+
+    menu
+      .categories()
+      .then((res) => {
+        console.log("Categories loaded", res);
+        setCategories(res);
+      })
+      .catch((e) => console.error("Categories error", e));
   }, []);
+
+  //endregion
 
   // Fetch KOTs when switching to Running KOT tab
   useEffect(() => {
     if (activeTab === 1) {
-      kot.list('PENDING,PREPARING,READY').then(setKotOrders).catch(() => {});
+      kot
+        .list("PENDING,PREPARING,READY")
+        .then(setKotOrders)
+        .catch(() => {});
     }
   }, [activeTab]);
 
   const items = useMemo(() => {
     let list = menuItems ?? [];
-    if (cat !== "all") list = list.filter((i) => i.category?.name?.toLowerCase() === cat);
+    if (cat !== "all")
+      list = list.filter((i) => i.category?.name?.toLowerCase() === cat);
     if (filter === "veg") list = list.filter((i) => i.veg);
     if (filter === "nv") list = list.filter((i) => !i.veg);
     if (filter === "best") list = list.filter((i) => i.bestSeller);
     if (filter === "avail") list = list.filter((i) => i.available);
-    if (search) list = list.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
+    if (search)
+      list = list.filter((i) =>
+        i.name.toLowerCase().includes(search.toLowerCase()),
+      );
     return list;
   }, [cat, filter, search, menuItems]);
 
-  const allCats = useMemo(() => [
-    { id: 'all', name: 'All', icon: '🍽️' },
-    ...categories.map(c => ({ id: c.name.toLowerCase(), name: c.name, icon: '' })),
-  ], [categories]);
+  const allCats = useMemo(
+    () => [
+      { id: "all", name: "All", icon: "🍽️" },
+      ...categories.map((c) => ({
+        id: c.name.toLowerCase(),
+        name: c.name,
+        icon: "",
+      })),
+    ],
+    [categories],
+  );
 
   const addItem = (id: string) => {
     const item = menuItems.find((i) => i.id === id)!;
@@ -79,7 +139,14 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
         ...prev,
         [id]: existing
           ? { ...existing, qty: existing.qty + 1 }
-          : { id, name: item.name, price: Number(item.price), qty: 1, veg: item.veg, emoji: '' },
+          : {
+              id,
+              name: item.name,
+              price: Number(item.price),
+              qty: 1,
+              veg: item.veg,
+              emoji: "",
+            },
       };
     });
     toast(`${item.name} added`, "success");
@@ -95,24 +162,56 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
     });
   };
 
-  const clearCart = () => { setCart({}); setOrderId(undefined); };
+  const clearCart = () => {
+    setCart({});
+    setOrderId(undefined);
+  };
+
+  const createOrder = async () => {
+    if (cartItems.length === 0) return;
+    if (orderId) return orderId;
+    const orderTypeMap: Record<string, string> = {
+      "Dine In": "DINE_IN",
+      Takeaway: "TAKEAWAY",
+      Delivery: "DELIVERY",
+    };
+    const order = await orders.create({
+      orderType: orderTypeMap[orderType] ?? "DINE_IN",
+      tableId: orderType === "Dine In" ? tableId : undefined,
+      items: cartItems.map((i) => ({ menuItemId: i.id, quantity: i.qty })),
+    });
+    setOrderId(order.id);
+    return order.id;
+  };
 
   const sendKOT = async () => {
     if (cartItems.length === 0) return;
     setKotLoading(true);
     try {
-      const orderTypeMap: Record<string, string> = { 'Dine In': 'DINE_IN', 'Takeaway': 'TAKEAWAY', 'Delivery': 'DELIVERY' };
-      const order = await orders.create({
-        orderType: orderTypeMap[orderType] ?? 'DINE_IN',
-        items: cartItems.map(i => ({ menuItemId: i.id, quantity: i.qty })),
-      });
-      setOrderId(order.id);
+      await createOrder();
       toast("KOT sent to kitchen 🍳", "kitchen");
       setActiveTab(1);
     } catch (e) {
       toast("Failed to send KOT", "info");
     } finally {
       setKotLoading(false);
+    }
+  };
+
+  const proceedToPayment = async () => {
+    if (cartItems.length === 0 || paymentLoading) return;
+    setPaymentLoading(true);
+    try {
+      const nextOrderId = await createOrder();
+      if (!nextOrderId) {
+        toast("Create an order before payment", "info");
+        return;
+      }
+      onPayment(cartItems, nextOrderId, tableNo ? tableLabel : undefined);
+    } catch (e) {
+      toast("Failed to create order for payment", "info");
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -126,7 +225,10 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
 
   const TABS = [
     { label: "New Order", badge: null },
-    { label: "Running KOT", badge: kotOrders.filter(k => k.status !== 'COMPLETED').length || null },
+    {
+      label: "Running KOT",
+      badge: kotOrders.filter((k) => k.status !== "COMPLETED").length || null,
+    },
     { label: "Order History", badge: null },
     { label: "Parcel", badge: null },
   ];
@@ -191,7 +293,14 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             style={{ background: "var(--surface2)" }}
           >
             {kotOrders.length === 0 && (
-              <div style={{ color: 'var(--text3)', padding: 40, width: '100%', textAlign: 'center' }}>
+              <div
+                style={{
+                  color: "var(--text3)",
+                  padding: 40,
+                  width: "100%",
+                  textAlign: "center",
+                }}
+              >
                 No active KOTs
               </div>
             )}
@@ -199,53 +308,106 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
               const isReady = order.status === "READY";
               const headerBg = isReady ? "var(--green)" : "var(--dark)";
               return (
-                <div key={order.id} className="rounded-xl overflow-hidden flex-shrink-0"
-                  style={{ width: 220, background: "var(--surface)", border: "1px solid var(--border)" }}>
-                  <div className="flex items-center justify-between px-3 py-2.5" style={{ background: headerBg }}>
+                <div
+                  key={order.id}
+                  className="rounded-xl overflow-hidden flex-shrink-0"
+                  style={{
+                    width: 220,
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-between px-3 py-2.5"
+                    style={{ background: headerBg }}
+                  >
                     <div>
                       <div className="text-[15px] font-extrabold text-white">
-                        {order.order?.tableId ? `Table` : order.order?.orderType ?? 'Order'}
+                        {order.order?.tableId
+                          ? `Table`
+                          : (order.order?.orderType ?? "Order")}
                       </div>
-                      <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }}>
+                      <div
+                        className="text-[10px]"
+                        style={{ color: "rgba(255,255,255,0.6)" }}
+                      >
                         KOT #{oi + 1}
                       </div>
                     </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
-                      style={{ background: "rgba(255,255,255,0.2)" }}>
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                      style={{ background: "rgba(255,255,255,0.2)" }}
+                    >
                       {order.status}
                     </span>
                   </div>
                   <div className="py-1.5">
                     {order.kotItems.map((item) => (
-                      <div key={item.id} className="flex items-center gap-2 px-3 py-1.5 text-[12px]">
-                        <span className="font-extrabold min-w-[18px]" style={{ color: "var(--primary)" }}>
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2 px-3 py-1.5 text-[12px]"
+                      >
+                        <span
+                          className="font-extrabold min-w-[18px]"
+                          style={{ color: "var(--primary)" }}
+                        >
                           {item.quantity}×
                         </span>
-                        <span className="flex-1 font-medium" style={{ color: "#20302d" }}>
-                          {item.orderItem?.menuItem?.name ?? 'Item'}
+                        <span
+                          className="flex-1 font-medium"
+                          style={{ color: "#20302d" }}
+                        >
+                          {item.orderItem?.menuItem?.name ?? "Item"}
                         </span>
-                        <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]"
-                          style={{ background: item.done ? "var(--green)" : "var(--border)", color: item.done ? "#fff" : "transparent" }}>
+                        <span
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-[10px]"
+                          style={{
+                            background: item.done
+                              ? "var(--green)"
+                              : "var(--border)",
+                            color: item.done ? "#fff" : "transparent",
+                          }}
+                        >
                           {item.done ? "✓" : ""}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-1.5 px-3 pb-3 pt-1.5" style={{ borderTop: "1px solid var(--border)" }}>
-                    <button onClick={() => toast("KOT reprinted", "kitchen")}
+                  <div
+                    className="flex gap-1.5 px-3 pb-3 pt-1.5"
+                    style={{ borderTop: "1px solid var(--border)" }}
+                  >
+                    <button
+                      onClick={() => toast("KOT reprinted", "kitchen")}
                       className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
-                      style={{ border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)" }}>
+                      style={{
+                        border: "1px solid var(--border)",
+                        background: "var(--surface2)",
+                        color: "var(--text2)",
+                      }}
+                    >
                       Reprint
                     </button>
                     <button
                       onClick={async () => {
-                        const next = isReady ? 'COMPLETED' : 'READY';
+                        const next = isReady ? "COMPLETED" : "READY";
                         await kot.updateStatus(order.id, next).catch(() => {});
-                        setKotOrders(prev => prev.map(k => k.id === order.id ? { ...k, status: next } : k));
-                        toast(isReady ? "Marked served" : "Marked ready", "success");
+                        setKotOrders((prev) =>
+                          prev.map((k) =>
+                            k.id === order.id ? { ...k, status: next } : k,
+                          ),
+                        );
+                        toast(
+                          isReady ? "Marked served" : "Marked ready",
+                          "success",
+                        );
                       }}
                       className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
-                      style={{ background: isReady ? "var(--green)" : "var(--primary)", border: "none" }}>
+                      style={{
+                        background: isReady ? "var(--green)" : "var(--primary)",
+                        border: "none",
+                      }}
+                    >
                       {isReady ? "Served" : "Mark Ready"}
                     </button>
                   </div>
@@ -481,7 +643,11 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       style={{ background: "var(--surface3)" }}
                     >
                       {item.imageUrl && (
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
                       )}
                       <div
                         className="absolute inset-0 flex items-center justify-center"
@@ -617,7 +783,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             className="text-[11px] font-bold px-2 py-1 rounded cursor-pointer"
             style={{ background: "var(--blue-bg)", color: "var(--blue)" }}
           >
-            🪑 Table 7
+            {tableLabel}
           </button>
         </div>
 
@@ -890,7 +1056,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             ))}
           </div>
           <button
-            onClick={() => cartItems.length > 0 && onPayment(cartItems, orderId)}
+            onClick={proceedToPayment}
             className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all"
             style={{
               background:
@@ -908,7 +1074,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                   "var(--primary)";
             }}
           >
-            💳 Proceed to Payment
+            {paymentLoading ? "Opening Payment..." : "💳 Proceed to Payment"}
           </button>
         </div>
       </div>
