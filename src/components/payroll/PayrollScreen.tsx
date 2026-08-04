@@ -12,6 +12,9 @@ import {
   Trash2,
   HandCoins,
   Search,
+  Moon,
+  Sun,
+  LucideIcon,
 } from "lucide-react";
 
 type Employee = {
@@ -24,16 +27,51 @@ type Employee = {
   active: boolean;
 };
 
+type Theme = "dark" | "light";
+
+// ---------------------------------------------------------------------------
+// Theme tokens
+// ---------------------------------------------------------------------------
+function getColors(theme: Theme) {
+  const isDark = theme === "dark";
+
+  return {
+    isDark,
+    pageBg: isDark ? "#0B1220" : "#F3F4F6",
+    cardBg: isDark ? "#111827" : "#FFFFFF",
+    border: isDark ? "#333333" : "#E5E7EB",
+    textPrimary: isDark ? "#FFFFFF" : "#111827",
+    textSecondary: isDark ? "#9CA3AF" : "#6B7280",
+    tableHeaderBg: isDark ? "#111827" : "#F9FAFB",
+    tableRowHover: isDark ? "#1F2937" : "#F3F4F6",
+    tableBorder: isDark ? "#374151" : "#E5E7EB",
+    inputBg: isDark ? "#111827" : "#FFFFFF",
+    inputBorder: isDark ? "#2B3545" : "#D1D5DB",
+    inputText: isDark ? "#FFFFFF" : "#111827",
+    inputPlaceholderIcon: isDark ? "#94A3B8" : "#9CA3AF",
+    roleBadgeBg: isDark ? "#1E40AF" : "#DBEAFE",
+    roleBadgeText: isDark ? "#DBEAFE" : "#1E40AF",
+    activeBg: isDark ? "#064E3B" : "#D1FAE5",
+    activeText: isDark ? "#A7F3D0" : "#065F46",
+    inactiveBg: isDark ? "#7F1D1D" : "#FEE2E2",
+    inactiveText: isDark ? "#FECACA" : "#991B1B",
+    salaryColor: isDark ? "#10B981" : "#059669",
+  };
+}
+
 export default function PayrollScreen() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>("dark");
 
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null,
   );
+
+  const c = getColors(theme);
 
   useEffect(() => {
     setEmployees([
@@ -104,7 +142,7 @@ export default function PayrollScreen() {
   );
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, background: c.pageBg, minHeight: "100vh" }}>
       <div
         style={{
           display: "flex",
@@ -118,7 +156,7 @@ export default function PayrollScreen() {
             style={{
               margin: 0,
               fontSize: 34,
-              color: "white",
+              color: c.textPrimary,
             }}
           >
             💰 Payroll Management
@@ -126,7 +164,7 @@ export default function PayrollScreen() {
 
           <p
             style={{
-              color: "#9CA3AF",
+              color: c.textSecondary,
               marginTop: 8,
             }}
           >
@@ -134,22 +172,44 @@ export default function PayrollScreen() {
           </p>
         </div>
 
-        <button
-          onClick={() => setOpenModal(true)}
-          style={{
-            background: "#F59E0B",
-            color: "#111827",
-            border: "none",
-            padding: "14px 22px",
-            borderRadius: 12,
-            fontWeight: 700,
-            fontSize: 15,
-            cursor: "pointer",
-            boxShadow: "0 10px 20px rgba(245,158,11,.35)",
-          }}
-        >
-          + Add Employee
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title="Toggle theme"
+            style={{
+              background: c.cardBg,
+              border: `1px solid ${c.border}`,
+              color: c.textPrimary,
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          <button
+            onClick={() => setOpenModal(true)}
+            style={{
+              background: "#F59E0B",
+              color: "#111827",
+              border: "none",
+              padding: "14px 22px",
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: "pointer",
+              boxShadow: "0 10px 20px rgba(245,158,11,.35)",
+            }}
+          >
+            + Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -165,29 +225,33 @@ export default function PayrollScreen() {
         <StatCard
           title="Employees"
           value={totalEmployees}
-          icon={<Users size={20} />}
+          icon={Users}
           color="#2563EB"
+          colors={c}
         />
 
         <StatCard
           title="Monthly Payroll"
           value={`₹${totalSalary.toLocaleString()}`}
-          icon={<Wallet size={20} />}
+          icon={Wallet}
           color="#10B981"
+          colors={c}
         />
 
         <StatCard
           title="Pending Payroll"
           value="₹0"
-          icon={<Clock3 size={20} />}
+          icon={Clock3}
           color="#F59E0B"
+          colors={c}
         />
 
         <StatCard
           title="Paid"
           value="₹0"
-          icon={<CheckCircle2 size={20} />}
+          icon={CheckCircle2}
           color="#8B5CF6"
+          colors={c}
         />
       </div>
 
@@ -205,7 +269,7 @@ export default function PayrollScreen() {
             position: "absolute",
             left: 16,
             top: 15,
-            color: "#94A3B8",
+            color: c.inputPlaceholderIcon,
           }}
         />
 
@@ -217,9 +281,9 @@ export default function PayrollScreen() {
             width: "100%",
             padding: "14px 18px 14px 46px",
             borderRadius: 10,
-            border: "1px solid #2B3545",
-            background: "#111827",
-            color: "white",
+            border: `1px solid ${c.inputBorder}`,
+            background: c.inputBg,
+            color: c.inputText,
             fontSize: 14,
             outline: "none",
           }}
@@ -232,7 +296,7 @@ export default function PayrollScreen() {
         style={{
           borderRadius: 12,
           overflow: "hidden",
-          border: "1px solid #333",
+          border: `1px solid ${c.border}`,
         }}
       >
         <table
@@ -243,16 +307,16 @@ export default function PayrollScreen() {
         >
           <thead
             style={{
-              background: "#111827",
+              background: c.tableHeaderBg,
             }}
           >
             <tr>
-              <th style={th}>Employee</th>
-              <th style={th}>Role</th>
-              <th style={th}>Phone</th>
-              <th style={th}>Salary</th>
-              <th style={th}>Status</th>
-              <th style={th}>Action</th>
+              <th style={{ ...th, color: c.textSecondary }}>Employee</th>
+              <th style={{ ...th, color: c.textSecondary }}>Role</th>
+              <th style={{ ...th, color: c.textSecondary }}>Phone</th>
+              <th style={{ ...th, color: c.textSecondary }}>Salary</th>
+              <th style={{ ...th, color: c.textSecondary }}>Status</th>
+              <th style={{ ...th, color: c.textSecondary }}>Action</th>
             </tr>
           </thead>
 
@@ -264,14 +328,14 @@ export default function PayrollScreen() {
                   transition: "0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#1F2937";
+                  e.currentTarget.style.background = c.tableRowHover;
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
                 }}
               >
                 {/* Employee */}
-                <td style={td}>
+                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
                   <div
                     style={{
                       display: "flex",
@@ -291,6 +355,7 @@ export default function PayrollScreen() {
                         fontWeight: 700,
                         color: "#111827",
                         fontSize: 18,
+                        flexShrink: 0,
                       }}
                     >
                       {emp.name.charAt(0).toUpperCase()}
@@ -300,7 +365,7 @@ export default function PayrollScreen() {
                       <div
                         style={{
                           fontWeight: 600,
-                          color: "white",
+                          color: c.textPrimary,
                         }}
                       >
                         {emp.name}
@@ -308,7 +373,7 @@ export default function PayrollScreen() {
 
                       <div
                         style={{
-                          color: "#9CA3AF",
+                          color: c.textSecondary,
                           fontSize: 13,
                         }}
                       >
@@ -319,11 +384,11 @@ export default function PayrollScreen() {
                 </td>
 
                 {/* Role */}
-                <td style={td}>
+                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
                   <span
                     style={{
-                      background: "#1E40AF",
-                      color: "#DBEAFE",
+                      background: c.roleBadgeBg,
+                      color: c.roleBadgeText,
                       padding: "6px 12px",
                       borderRadius: 20,
                       fontSize: 13,
@@ -335,14 +400,22 @@ export default function PayrollScreen() {
                 </td>
 
                 {/* Phone */}
-                <td style={td}>{emp.phone || "-"}</td>
+                <td
+                  style={{
+                    ...td,
+                    borderTop: `1px solid ${c.tableBorder}`,
+                    color: c.textPrimary,
+                  }}
+                >
+                  {emp.phone || "-"}
+                </td>
 
                 {/* Salary */}
-                <td style={td}>
+                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
                   <span
                     style={{
                       fontWeight: 700,
-                      color: "#10B981",
+                      color: c.salaryColor,
                       fontSize: 16,
                     }}
                   >
@@ -351,15 +424,15 @@ export default function PayrollScreen() {
                 </td>
 
                 {/* Status */}
-                <td style={td}>
+                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
                   <span
                     style={{
                       padding: "6px 12px",
                       borderRadius: 30,
                       fontSize: 13,
                       fontWeight: 600,
-                      background: emp.active ? "#064E3B" : "#7F1D1D",
-                      color: emp.active ? "#A7F3D0" : "#FECACA",
+                      background: emp.active ? c.activeBg : c.inactiveBg,
+                      color: emp.active ? c.activeText : c.inactiveText,
                     }}
                   >
                     {emp.active ? "Active" : "Inactive"}
@@ -367,18 +440,30 @@ export default function PayrollScreen() {
                 </td>
 
                 {/* Actions */}
-                <td style={td}>
+                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
                   <div
                     style={{
                       display: "flex",
                       gap: 8,
                     }}
                   >
-                    <button style={actionBlue}>
+                    <button
+                      style={actionBlue}
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setEditOpen(true);
+                      }}
+                    >
                       <Pencil size={16} />
                     </button>
 
-                    <button style={actionRed}>
+                    <button
+                      style={actionRed}
+                      onClick={() => {
+                        setSelectedEmployee(emp);
+                        setDeleteOpen(true);
+                      }}
+                    >
                       <Trash2 size={16} />
                     </button>
 
@@ -397,7 +482,7 @@ export default function PayrollScreen() {
                   style={{
                     padding: 60,
                     textAlign: "center",
-                    color: "#9CA3AF",
+                    color: c.textSecondary,
                   }}
                 >
                   No Employees Found
@@ -431,37 +516,62 @@ export default function PayrollScreen() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// StatCard — fixed-size icon badge keeps every card's header row the same
+// height, which is what was causing the misalignment before.
+// ---------------------------------------------------------------------------
 function StatCard({
   title,
   value,
-  icon,
+  icon: Icon,
   color,
+  colors,
 }: {
   title: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon: LucideIcon;
   color: string;
+  colors: ReturnType<typeof getColors>;
 }) {
   return (
     <div
       style={{
-        background: "#111827",
+        background: colors.cardBg,
         padding: 20,
         borderRadius: 12,
-        border: "1px solid #333",
+        border: `1px solid ${colors.border}`,
       }}
     >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          color: "#9ca3af",
-          marginBottom: 10,
+          gap: 12,
         }}
       >
-        <span>{icon}</span>
-        <span>{title}</span>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: `${color}1A`,
+          }}
+        >
+          <Icon size={20} color={color} />
+        </div>
+
+        <span
+          style={{
+            color: colors.textSecondary,
+            fontSize: 14,
+          }}
+        >
+          {title}
+        </span>
       </div>
 
       <div
@@ -469,6 +579,7 @@ function StatCard({
           fontSize: 24,
           fontWeight: 700,
           color,
+          marginTop: 14,
         }}
       >
         {value}
@@ -480,15 +591,12 @@ function StatCard({
 const th: React.CSSProperties = {
   padding: "16px",
   textAlign: "left",
-  color: "#D1D5DB",
   fontSize: 14,
   fontWeight: 600,
 };
 
 const td: React.CSSProperties = {
   padding: "16px",
-  borderTop: "1px solid #374151",
-  color: "white",
 };
 
 const actionBtn: React.CSSProperties = {
@@ -499,6 +607,9 @@ const actionBtn: React.CSSProperties = {
   borderRadius: 8,
   cursor: "pointer",
   fontSize: 15,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
 };
 
 const actionBlue: React.CSSProperties = {
