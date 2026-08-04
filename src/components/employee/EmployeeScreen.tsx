@@ -90,19 +90,17 @@ export default function EmployeesScreen({ toast }: Props) {
     load();
   }, [load]);
 
-  const totalStaff = staff.length
+  const totalStaff = staff.length;
 
-const activeStaff = staff.filter(e => e.active).length
+  const activeStaff = staff.filter((e) => e.active).length;
 
-const managerCount = staff.filter(e => e.role === 'MANAGER').length
+  const managerCount = staff.filter((e) => e.role === "MANAGER").length;
 
-const cashierCount = staff.filter(e => e.role === 'CASHIER').length
+  const cashierCount = staff.filter((e) => e.role === "CASHIER").length;
 
-const kitchenCount = staff.filter(
-  e =>
-    e.role === 'CHEF' ||
-    e.role === 'KITCHEN_STAFF'
-).length
+  const kitchenCount = staff.filter(
+    (e) => e.role === "CHEF" || e.role === "KITCHEN_STAFF",
+  ).length;
 
   // const filtered = roleFilter === 'All' ? staff : staff.filter(e => e.role === roleFilter)
   const filtered = staff.filter((emp) => {
@@ -230,95 +228,93 @@ const kitchenCount = staff.filter(
         ))}
       </div>
 
-        {/* Statistics */}
-<div
-  style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(5, 1fr)',
-    gap: 16,
-    padding: 16,
-    background: 'var(--surface2)',
-    borderBottom: '1px solid var(--border)',
-    flexShrink: 0,
-  }}
->
-  {[
-    {
-      title: 'Total Staff',
-      value: totalStaff,
-      icon: '👥',
-      color: 'var(--primary)',
-    },
-    {
-      title: 'Active',
-      value: activeStaff,
-      icon: '✅',
-      color: 'var(--green)',
-    },
-    {
-      title: 'Managers',
-      value: managerCount,
-      icon: '👔',
-      color: 'var(--blue)',
-    },
-    {
-      title: 'Kitchen',
-      value: kitchenCount,
-      icon: '🍳',
-      color: 'var(--amber)',
-    },
-    {
-      title: 'Cashiers',
-      value: cashierCount,
-      icon: '💰',
-      color: 'var(--purple)',
-    },
-  ].map(card => (
-    <div
-      key={card.title}
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 14,
-        padding: 16,
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
+      {/* Statistics */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 16,
+          padding: 16,
+          background: "var(--surface2)",
+          borderBottom: "1px solid var(--border)",
+          flexShrink: 0,
         }}
       >
-        <span
-          style={{
-            fontSize: 12,
-            color: 'var(--text3)',
-            fontWeight: 600,
-          }}
-        >
-          {card.title}
-        </span>
+        {[
+          {
+            title: "Total Staff",
+            value: totalStaff,
+            icon: "👥",
+            color: "var(--primary)",
+          },
+          {
+            title: "Active",
+            value: activeStaff,
+            icon: "✅",
+            color: "var(--green)",
+          },
+          {
+            title: "Managers",
+            value: managerCount,
+            icon: "👔",
+            color: "var(--blue)",
+          },
+          {
+            title: "Kitchen",
+            value: kitchenCount,
+            icon: "🍳",
+            color: "var(--amber)",
+          },
+          {
+            title: "Cashiers",
+            value: cashierCount,
+            icon: "💰",
+            color: "var(--purple)",
+          },
+        ].map((card) => (
+          <div
+            key={card.title}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 14,
+              padding: 16,
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--text3)",
+                  fontWeight: 600,
+                }}
+              >
+                {card.title}
+              </span>
 
-        <span style={{ fontSize: 22 }}>
-          {card.icon}
-        </span>
-      </div>
+              <span style={{ fontSize: 22 }}>{card.icon}</span>
+            </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          fontSize: 30,
-          fontWeight: 800,
-          color: card.color,
-        }}
-      >
-        {card.value}
+            <div
+              style={{
+                marginTop: 12,
+                fontSize: 30,
+                fontWeight: 800,
+                color: card.color,
+              }}
+            >
+              {card.value}
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
-  ))}
-</div>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Staff list */}
