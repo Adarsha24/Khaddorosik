@@ -26,10 +26,15 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
     setPayOpen(true)
   }, [])
 
-  const confirmPayment = async (method: string, amount?: number, splits?: { method: string; amount: number }[]) => {
+  const confirmPayment = async (method: string, tipAmount?: number, splits?: { method: string; amount: number }[]) => {
     if (payOrderId) {
       try {
-        await payments.create({ orderId: payOrderId, method: method.toUpperCase(), splits })
+        await payments.create({
+          orderId: payOrderId,
+          method: method.toUpperCase(),
+          tipAmount: tipAmount ?? 0,
+          splits,
+        })
         toast('Payment confirmed! Order closed.', 'success')
       } catch (e: unknown) {
         toast(e instanceof Error ? e.message : 'Payment failed. Try again.', 'info')

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { authenticate } from '@/lib/middleware'
+import { authenticateRoles } from '@/lib/middleware'
 import { ok, notFound, badRequest, serverError } from '@/lib/response'
 import { z } from 'zod'
 
@@ -14,7 +14,7 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await authenticate(req)
+    const auth = await authenticateRoles(req, 'SUPER_ADMIN', 'MANAGER', 'KITCHEN')
     if (auth instanceof Response) return auth
     const { id } = await params
 

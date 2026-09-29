@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { comparePassword, signAccess, signRefresh, refreshExpiresAt } from '@/lib/auth'
-import { ok, badRequest, serverError } from '@/lib/response'
+import { ok, badRequest, serverError, tooManyRequests } from '@/lib/response'
+import { checkRateLimit, clearRateLimit, getClientIp } from '@/lib/rateLimit'
 import { z } from 'zod'
 
 const Schema = z.object({ email: z.string().email(), code: z.string().length(6) })
@@ -13,15 +14,27 @@ export async function POST(req: NextRequest) {
 
     const { email, code } = parsed.data
 
+    // OTP codes are only 6 digits — far easier to brute-force than a password,
+    // so this needs a tighter limit than login: 5 attempts per 10 minutes.
+    const ip = getClientIp(req)
+    const rateLimitKey = `otp-verify:${email.toLowerCase()}:${ip}`
+    const rateLimit = checkRateLimit(rateLimitKey, 5, 10 * 60 * 1000)
+
+    if (!rateLimit.allowed) {
+      return tooManyRequests(rateLimit.retryAfterSeconds)
+    }
+
     const otp = await prisma.otpCode.findFirst({
       where: { email, used: false, expiresAt: { gte: new Date() } },
       orderBy: { createdAt: 'desc' },
     })
     if (!otp || !(await comparePassword(code, otp.code))) return badRequest('Invalid or expired OTP')
 
+    // Correct code entered — clear the rate limit and consume the OTP
+    clearRateLimit(rateLimitKey)
     await prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } })
 
-    const user = await prisma.user.findFirst({
+    const user = await prisma.user.findUnique({
       where: { email },
       include: {
         employee: { select: { name: true } },

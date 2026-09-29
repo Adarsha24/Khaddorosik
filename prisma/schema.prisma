@@ -41,20 +41,20 @@ model Restaurant {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  restaurantId  String         @map("restaurant_id")
-  email         String
-  passwordHash  String         @map("password_hash")
-  role          Role           @default(WAITER)
-  employeeId    String?        @unique @map("employee_id")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  orders        Order[]        @relation("CreatedBy")
-  refreshTokens RefreshToken[]
-  employee      Employee?      @relation(fields: [employeeId], references: [id])
-  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  id                 String         @id @default(uuid())
+  restaurantId       String         @map("restaurant_id")
+  email              String         @unique
+  passwordHash       String         @map("password_hash")
+  mustChangePassword Boolean        @default(true) @map("must_change_password")
+  role               Role           @default(WAITER)
+  employeeId         String?        @unique @map("employee_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  orders             Order[]        @relation("CreatedBy")
+  refreshTokens      RefreshToken[]
+  employee           Employee?      @relation(fields: [employeeId], references: [id])
+  restaurant         Restaurant     @relation(fields: [restaurantId], references: [id])
 
-  @@unique([restaurantId, email])
   @@map("users")
 }
 
@@ -111,7 +111,7 @@ model MenuItem {
   updatedAt   DateTime    @updatedAt @map("updated_at")
   category    Category    @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
-
+  @@unique([categoryId, name])   // ← ADD THIS LINE
   @@map("menu_items")
 }
 
@@ -221,6 +221,7 @@ model Payment {
   id        String         @id @default(uuid())
   orderId   String         @map("order_id")
   amount    Decimal        @db.Decimal(10, 2)
+  tipAmount Decimal        @default(0) @db.Decimal(10, 2) @map("tip_amount")
   method    PaymentMethod
   reference String?
   status    PaymentStatus  @default(COMPLETED)
@@ -276,7 +277,7 @@ model InventoryItem {
   restaurant   Restaurant             @relation(fields: [restaurantId], references: [id])
   supplier     Supplier?              @relation(fields: [supplierId], references: [id])
   transactions InventoryTransaction[]
-
+  @@unique([restaurantId, name])   // ← ADD THIS LINE
   @@map("inventory_items")
 }
 
@@ -390,15 +391,30 @@ model Payroll {
   employeeId  String
   month       Int
   year        Int
-  basicSalary Float
-  bonus       Float         @default(0)
-  deduction   Float         @default(0)
-  netSalary   Float
+  basicSalary Decimal       @db.Decimal(10, 2)   // was: Float
+  bonus       Decimal       @default(0) @db.Decimal(10, 2)   // was: Float
+  deduction   Decimal       @default(0) @db.Decimal(10, 2)   // was: Float
+  netSalary   Decimal       @db.Decimal(10, 2)   // was: Float
   status      PayrollStatus @default(PENDING)
   paidAt      DateTime?
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
   employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  restaurantId String   @map("restaurant_id")
+  userId       String?  @map("user_id")
+  action       String
+  entityType   String   @map("entity_type")
+  entityId     String?  @map("entity_id")
+  details      Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([restaurantId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
 
 enum Role {

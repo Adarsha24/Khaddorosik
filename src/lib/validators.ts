@@ -40,7 +40,7 @@ export const TableSchema = z.object({
 
 export const TableStatusSchema = z.object({
   status: z.enum(['AVAILABLE', 'OCCUPIED', 'RESERVED', 'CLEANING']),
-  waiterId: z.string().uuid().optional(),
+  waiterId: z.string().min(1).optional(),
 })
 
 // ─── Orders ───────────────────────────────────────────────────────────────────

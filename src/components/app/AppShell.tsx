@@ -3,10 +3,12 @@
 import LoginScreen from '@/components/auth/LoginScreen'
 import Sidebar from '@/components/billing/Sidebar'
 import Topbar from '@/components/billing/Topbar'
+import ForcedPasswordChange from '@/components/auth/ForcedPasswordChange'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { PaymentProvider } from './PaymentProvider'
 import { ToastProvider } from './ToastProvider'
+
 
 function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -25,14 +27,18 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
 
   if (!user) return <LoginScreen />
 
+  if (user.mustChangePassword) {
+    return <ForcedPasswordChange />
+  }
+
   return (
     <ToastProvider>
       <PaymentProvider>
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <div className="pos-app" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
           <Topbar />
-          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <div className="pos-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
             <Sidebar />
-            <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
+            <main className="pos-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg)' }}>
               {children}
             </main>
           </div>

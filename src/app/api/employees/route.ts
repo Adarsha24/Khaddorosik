@@ -38,7 +38,7 @@ const EmployeeSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await authenticate(req);
+    const auth = await authenticateRoles(req, "SUPER_ADMIN", "MANAGER");  // was: authenticate(req)
     if (auth instanceof Response) return auth;
 
     const { searchParams } = new URL(req.url);

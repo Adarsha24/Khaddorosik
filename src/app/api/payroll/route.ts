@@ -1,59 +1,101 @@
-import { prisma } from '@/lib/db'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/db";
+import { authenticateRoles } from "@/lib/middleware";
+import { ok, created, badRequest, notFound, serverError } from "@/lib/response";
+import { z } from "zod";
+import { logAudit } from "@/lib/audit";
 
+const PayrollSchema = z.object({
+  employeeId: z.string().uuid(),
+  month: z.number().int().min(1).max(12),
+  year: z.number().int().min(2000),
+  basicSalary: z.number().positive(),
+  bonus: z.number().min(0).default(0),
+  deduction: z.number().min(0).default(0),
+});
 
-/* ===========================
-   GET - List Payroll
-=========================== */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const payroll = await prisma.payroll.findMany({
-      include: {
-        employee: true,
-      },
-      orderBy: {
-        year: 'desc',
-      },
-    })
+    const auth = await authenticateRoles(req, "SUPER_ADMIN", "MANAGER");
+    if (auth instanceof Response) return auth;
 
-    return NextResponse.json(payroll)
+    const payroll = await prisma.payroll.findMany({
+      where: { employee: { restaurantId: auth.restaurantId } },
+      include: { employee: { select: { id: true, name: true, role: true } } },
+      orderBy: [{ year: "desc" }, { month: "desc" }],
+    });
+
+    return ok(payroll);
   } catch (error) {
-    console.error(error)
-    return NextResponse.json(
-      { error: 'Failed to fetch payroll.' },
-      { status: 500 }
-    )
+    console.error("[GET /api/payroll]", error);
+    return serverError();
   }
 }
 
-/* ===========================
-   POST - Create Payroll
-=========================== */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const auth = await authenticateRoles(req, "SUPER_ADMIN", "MANAGER");
+    if (auth instanceof Response) return auth;
+
+    const body = await req.json();
+    const parsed = PayrollSchema.safeParse(body);
+    if (!parsed.success) {
+      console.error(
+        "[POST /api/payroll] validation failed:",
+        JSON.stringify(body),
+        parsed.error.format(),
+      );
+      return badRequest("Invalid payroll data");
+    }
+
+    const { employeeId, month, year, basicSalary, bonus, deduction } =
+      parsed.data;
+
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, restaurantId: auth.restaurantId },
+      select: { id: true },
+    });
+    if (!employee) return notFound("Employee");
+
+    const existing = await prisma.payroll.findFirst({
+      where: { employeeId, month, year },
+    });
+    if (existing)
+      return badRequest(
+        "Payroll already exists for this employee for this month/year",
+      );
 
     const payroll = await prisma.payroll.create({
       data: {
-        employeeId: body.employeeId,
-        month: body.month,
-        year: body.year,
-        basicSalary: body.basicSalary,
-        bonus: body.bonus ?? 0,
-        deduction: body.deduction ?? 0,
-        netSalary:
-          body.basicSalary +
-          (body.bonus ?? 0) -
-          (body.deduction ?? 0),
+        employeeId,
+        month,
+        year,
+        basicSalary,
+        bonus,
+        deduction,
+        netSalary: basicSalary + bonus - deduction,
       },
-    })
+      include: { employee: { select: { id: true, name: true, role: true } } },
+    });
+    logAudit({
+      restaurantId: auth.restaurantId,
+      userId: auth.userId,
+      action: "PAYROLL_CREATED",
+      entityType: "Payroll",
+      entityId: payroll.id,
+      details: {
+        employeeId,
+        employeeName: payroll.employee?.name,
+        month,
+        year,
+        netSalary: payroll.netSalary,
+      },
+    });
 
-    return NextResponse.json(payroll)
+    return created(payroll);
+    return created(payroll);
   } catch (error) {
-    console.error(error)
-    return NextResponse.json(
-      { error: 'Failed to create payroll.' },
-      { status: 500 }
-    )
+    console.error("[POST /api/payroll]", error);
+    return serverError();
   }
 }

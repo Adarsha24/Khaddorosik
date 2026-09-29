@@ -135,14 +135,6 @@ export async function POST(req: NextRequest) {
     const taxAmount = cgstAmount + sgstAmount
     const total = parseFloat((taxableAmount + taxAmount).toFixed(2))
 
-    let tableSessionId: string | undefined
-    if (tableId) {
-      const session = await prisma.tableSession.findFirst({
-        where: { tableId, status: 'OPEN' },
-      })
-      tableSessionId = session?.id
-    }
-
     // Get next bill number for this restaurant
     const lastOrder = await prisma.order.findFirst({
       where: { restaurantId: auth.restaurantId },
@@ -152,6 +144,22 @@ export async function POST(req: NextRequest) {
     const billNo = (lastOrder?.billNo ?? 0) + 1
 
     const order = await prisma.$transaction(async (tx) => {
+      // Ensure the table has an open session before we attach the order to it.
+      // Without this, a table can be OCCUPIED with a real order that no session
+      // points to — the Tables screen would then show it as "0 orders".
+      let tableSessionId: string | undefined
+      if (tableId) {
+        let session = await tx.tableSession.findFirst({
+          where: { tableId, status: 'OPEN' },
+        })
+        if (!session) {
+          session = await tx.tableSession.create({
+            data: { tableId, status: 'OPEN' },
+          })
+        }
+        tableSessionId = session.id
+      }
+
       const newOrder = await tx.order.create({
         data: {
           restaurantId: auth.restaurantId,

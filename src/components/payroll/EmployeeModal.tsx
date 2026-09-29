@@ -18,6 +18,7 @@ export default function EmployeeModal({
   const [form, setForm] = useState({
     name: '',
     role: 'WAITER',
+    userRole: "WAITER",
     phone: '',
     email: '',
     salary: '',
@@ -65,6 +66,7 @@ if (!token) {
       setForm({
         name: '',
         role: 'WAITER',
+        userRole: 'WAITER',
         phone: '',
         email: '',
         salary: '',

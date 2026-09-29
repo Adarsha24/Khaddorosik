@@ -1,40 +1,42 @@
 "use client";
-import EmployeeModal from "@/components/payroll/EmployeeModal";
-import EditEmployeeModal from "@/components/payroll/EditEmployeeModal";
-import DeleteEmployeeModal from "@/components/payroll/DeleteEmployeeModal";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Users,
   Wallet,
   Clock3,
   CheckCircle2,
-  Pencil,
-  Trash2,
   HandCoins,
   Search,
   Moon,
   Sun,
   LucideIcon,
 } from "lucide-react";
-
-type Employee = {
-  id: string;
-  name: string;
-  role: string;
-  phone?: string;
-  email?: string;
-  salary: number;
-  active: boolean;
-};
+import {
+  payroll as payrollApi,
+  employees as employeesApi,
+  ApiPayroll,
+  ApiEmployee,
+} from "@/lib/api";
 
 type Theme = "dark" | "light";
 
-// ---------------------------------------------------------------------------
-// Theme tokens
-// ---------------------------------------------------------------------------
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 function getColors(theme: Theme) {
   const isDark = theme === "dark";
-
   return {
     isDark,
     pageBg: isDark ? "#0B1220" : "#F3F4F6",
@@ -60,86 +62,47 @@ function getColors(theme: Theme) {
 }
 
 export default function PayrollScreen() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [records, setRecords] = useState<ApiPayroll[]>([]);
+  const [employeeList, setEmployeeList] = useState<ApiEmployee[]>([]);
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("dark");
-
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
-    null,
-  );
+  const [loading, setLoading] = useState(true);
 
   const c = getColors(theme);
 
-  useEffect(() => {
-    setEmployees([
-      {
-        id: "1",
-        name: "Rahul Sharma",
-        role: "MANAGER",
-        phone: "9876543210",
-        email: "rahul@gmail.com",
-        salary: 35000,
-        active: true,
-      },
-      {
-        id: "2",
-        name: "Priya Das",
-        role: "CASHIER",
-        phone: "9123456789",
-        email: "priya@gmail.com",
-        salary: 22000,
-        active: true,
-      },
-      {
-        id: "3",
-        name: "Amit Roy",
-        role: "WAITER",
-        phone: "9871112222",
-        email: "amit@gmail.com",
-        salary: 18000,
-        active: false,
-      },
-      {
-        id: "4",
-        name: "Sneha Paul",
-        role: "CHEF",
-        phone: "9000011111",
-        email: "sneha@gmail.com",
-        salary: 42000,
-        active: true,
-      },
-    ]);
-
-    // loadEmployees();
-  }, []);
-
-  async function loadEmployees() {
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const res = await fetch("/api/employees");
-
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      setEmployees(data.data ?? data);
+      const [pay, emps] = await Promise.all([
+        payrollApi.list(),
+        employeesApi.list(),
+      ]);
+      setRecords(pay);
+      setEmployeeList(emps);
     } catch (err) {
       console.log(err);
+    } finally {
+      setLoading(false);
     }
-  }
+  }, []);
 
-  const filtered = employees.filter((emp) =>
-    emp.name.toLowerCase().includes(search.toLowerCase()),
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleMarkPaid = async (id: string) => {
+    await payrollApi.updateStatus(id, "PAID");
+    await load(true);
+  };
+
+  const filtered = records.filter((r) =>
+    (r.employee?.name ?? "").toLowerCase().includes(search.toLowerCase()),
   );
 
-  const totalEmployees = employees.length;
-
-  const totalSalary = employees.reduce(
-    (sum, emp) => sum + Number(emp.salary ?? 0),
-    0,
-  );
+const totalSalary = records.reduce((sum, r) => sum + Number(r.netSalary), 0);
+  const paidCount = records.filter((r) => r.status === "PAID").length;
+  const pendingCount = records.filter((r) => r.status === "PENDING").length;
 
   return (
     <div style={{ padding: 24, background: c.pageBg, minHeight: "100vh" }}>
@@ -152,28 +115,15 @@ export default function PayrollScreen() {
         }}
       >
         <div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 34,
-              color: c.textPrimary,
-            }}
-          >
+          <h1 style={{ margin: 0, fontSize: 34, color: c.textPrimary }}>
             💰 Payroll Management
           </h1>
-
-          <p
-            style={{
-              color: c.textSecondary,
-              marginTop: 8,
-            }}
-          >
+          <p style={{ color: c.textSecondary, marginTop: 8 }}>
             Manage employee salaries, payroll history and payments.
           </p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Theme toggle */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             title="Toggle theme"
@@ -207,12 +157,10 @@ export default function PayrollScreen() {
               boxShadow: "0 10px 20px rgba(245,158,11,.35)",
             }}
           >
-            + Add Employee
+            + Add Payroll
           </button>
         </div>
       </div>
-
-      {/* Stats */}
 
       <div
         style={{
@@ -224,12 +172,11 @@ export default function PayrollScreen() {
       >
         <StatCard
           title="Employees"
-          value={totalEmployees}
+          value={employeeList.length}
           icon={Users}
           color="#2563EB"
           colors={c}
         />
-
         <StatCard
           title="Monthly Payroll"
           value={`₹${totalSalary.toLocaleString()}`}
@@ -237,32 +184,23 @@ export default function PayrollScreen() {
           color="#10B981"
           colors={c}
         />
-
         <StatCard
           title="Pending Payroll"
-          value="₹0"
+          value={pendingCount}
           icon={Clock3}
           color="#F59E0B"
           colors={c}
         />
-
         <StatCard
           title="Paid"
-          value="₹0"
+          value={paidCount}
           icon={CheckCircle2}
           color="#8B5CF6"
           colors={c}
         />
       </div>
 
-      {/* Search */}
-
-      <div
-        style={{
-          position: "relative",
-          marginBottom: 25,
-        }}
-      >
+      <div style={{ position: "relative", marginBottom: 25 }}>
         <Search
           size={18}
           style={{
@@ -272,7 +210,6 @@ export default function PayrollScreen() {
             color: c.inputPlaceholderIcon,
           }}
         />
-
         <input
           placeholder="Search employee..."
           value={search}
@@ -290,8 +227,6 @@ export default function PayrollScreen() {
         />
       </div>
 
-      {/* Table */}
-
       <div
         style={{
           borderRadius: 12,
@@ -299,183 +234,19 @@ export default function PayrollScreen() {
           border: `1px solid ${c.border}`,
         }}
       >
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-          }}
-        >
-          <thead
-            style={{
-              background: c.tableHeaderBg,
-            }}
-          >
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead style={{ background: c.tableHeaderBg }}>
             <tr>
               <th style={{ ...th, color: c.textSecondary }}>Employee</th>
-              <th style={{ ...th, color: c.textSecondary }}>Role</th>
-              <th style={{ ...th, color: c.textSecondary }}>Phone</th>
-              <th style={{ ...th, color: c.textSecondary }}>Salary</th>
+              <th style={{ ...th, color: c.textSecondary }}>Month</th>
+              <th style={{ ...th, color: c.textSecondary }}>Basic</th>
+              <th style={{ ...th, color: c.textSecondary }}>Net Salary</th>
               <th style={{ ...th, color: c.textSecondary }}>Status</th>
               <th style={{ ...th, color: c.textSecondary }}>Action</th>
             </tr>
           </thead>
-
           <tbody>
-            {filtered.map((emp) => (
-              <tr
-                key={emp.id}
-                style={{
-                  transition: "0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = c.tableRowHover;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                {/* Employee */}
-                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: "50%",
-                        background: "#F59E0B",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        fontWeight: 700,
-                        color: "#111827",
-                        fontSize: 18,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
-
-                    <div>
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          color: c.textPrimary,
-                        }}
-                      >
-                        {emp.name}
-                      </div>
-
-                      <div
-                        style={{
-                          color: c.textSecondary,
-                          fontSize: 13,
-                        }}
-                      >
-                        {emp.email || "No Email"}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-
-                {/* Role */}
-                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
-                  <span
-                    style={{
-                      background: c.roleBadgeBg,
-                      color: c.roleBadgeText,
-                      padding: "6px 12px",
-                      borderRadius: 20,
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {emp.role.replace("_", " ")}
-                  </span>
-                </td>
-
-                {/* Phone */}
-                <td
-                  style={{
-                    ...td,
-                    borderTop: `1px solid ${c.tableBorder}`,
-                    color: c.textPrimary,
-                  }}
-                >
-                  {emp.phone || "-"}
-                </td>
-
-                {/* Salary */}
-                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
-                  <span
-                    style={{
-                      fontWeight: 700,
-                      color: c.salaryColor,
-                      fontSize: 16,
-                    }}
-                  >
-                    ₹{Number(emp.salary).toLocaleString()}
-                  </span>
-                </td>
-
-                {/* Status */}
-                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
-                  <span
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 30,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      background: emp.active ? c.activeBg : c.inactiveBg,
-                      color: emp.active ? c.activeText : c.inactiveText,
-                    }}
-                  >
-                    {emp.active ? "Active" : "Inactive"}
-                  </span>
-                </td>
-
-                {/* Actions */}
-                <td style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                    }}
-                  >
-                    <button
-                      style={actionBlue}
-                      onClick={() => {
-                        setSelectedEmployee(emp);
-                        setEditOpen(true);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </button>
-
-                    <button
-                      style={actionRed}
-                      onClick={() => {
-                        setSelectedEmployee(emp);
-                        setDeleteOpen(true);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-
-                    <button style={actionGreen}>
-                      <HandCoins size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {filtered.length === 0 && (
+            {loading ? (
               <tr>
                 <td
                   colSpan={6}
@@ -485,41 +256,394 @@ export default function PayrollScreen() {
                     color: c.textSecondary,
                   }}
                 >
-                  No Employees Found
+                  Loading…
                 </td>
               </tr>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  style={{
+                    padding: 60,
+                    textAlign: "center",
+                    color: c.textSecondary,
+                  }}
+                >
+                  No Payroll Records
+                </td>
+              </tr>
+            ) : (
+              filtered.map((r) => (
+                <tr
+                  key={r.id}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = c.tableRowHover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <td
+                    style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
+                      <div
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: "50%",
+                          background: "#F59E0B",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          fontWeight: 700,
+                          color: "#111827",
+                          fontSize: 18,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(r.employee?.name ?? "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ fontWeight: 600, color: c.textPrimary }}>
+                        {r.employee?.name ?? "—"}
+                      </div>
+                    </div>
+                  </td>
+                  <td
+                    style={{
+                      ...td,
+                      borderTop: `1px solid ${c.tableBorder}`,
+                      color: c.textPrimary,
+                    }}
+                  >
+                    {MONTHS[r.month - 1]} {r.year}
+                  </td>
+                  <td
+                    style={{
+                      ...td,
+                      borderTop: `1px solid ${c.tableBorder}`,
+                      color: c.textPrimary,
+                    }}
+                  >
+                    ₹{r.basicSalary.toLocaleString()}
+                  </td>
+                  <td
+                    style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: c.salaryColor,
+                        fontSize: 16,
+                      }}
+                    >
+                      ₹{r.netSalary.toLocaleString()}
+                    </span>
+                  </td>
+                  <td
+                    style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}
+                  >
+                    <span
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 30,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        background:
+                          r.status === "PAID" ? c.activeBg : c.inactiveBg,
+                        color:
+                          r.status === "PAID" ? c.activeText : c.inactiveText,
+                      }}
+                    >
+                      {r.status}
+                    </span>
+                  </td>
+                  <td
+                    style={{ ...td, borderTop: `1px solid ${c.tableBorder}` }}
+                  >
+                    {r.status === "PENDING" && (
+                      <button
+                        onClick={() => handleMarkPaid(r.id)}
+                        style={{
+                          border: "none",
+                          color: "white",
+                          background: "#10B981",
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <HandCoins size={16} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
       </div>
 
-      <EmployeeModal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        onSuccess={loadEmployees}
-      />
-      <EditEmployeeModal
-        open={editOpen}
-        employee={selectedEmployee}
-        onClose={() => setEditOpen(false)}
-      />
-      <DeleteEmployeeModal
-        open={deleteOpen}
-        employee={selectedEmployee}
-        onClose={() => setDeleteOpen(false)}
-        onDelete={() => {
-          alert("Delete API will be connected later 😊");
-          setDeleteOpen(false);
-        }}
-      />
+      {openModal && (
+        <AddPayrollForm
+          employees={employeeList}
+          onClose={() => setOpenModal(false)}
+          onSaved={() => {
+            setOpenModal(false);
+            load(true);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// StatCard — fixed-size icon badge keeps every card's header row the same
-// height, which is what was causing the misalignment before.
-// ---------------------------------------------------------------------------
+function AddPayrollForm({
+  employees,
+  onClose,
+  onSaved,
+}: {
+  employees: ApiEmployee[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [employeeId, setEmployeeId] = useState("");
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [basicSalary, setBasicSalary] = useState("");
+  const [bonus, setBonus] = useState("0");
+  const [deduction, setDeduction] = useState("0");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const netSalary =
+    (Number(basicSalary) || 0) +
+    (Number(bonus) || 0) -
+    (Number(deduction) || 0);
+
+  const submit = async () => {
+    setError("");
+    if (!employeeId) {
+      setError("Select an employee");
+      return;
+    }
+    if (!basicSalary || Number(basicSalary) <= 0) {
+      setError("Enter a valid basic salary");
+      return;
+    }
+    setSaving(true);
+    try {
+      await payrollApi.create({
+        employeeId,
+        month,
+        year,
+        basicSalary: Number(basicSalary),
+        bonus: Number(bonus) || 0,
+        deduction: Number(deduction) || 0,
+      });
+      onSaved();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to create payroll");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    background: "var(--surface)",
+    color: "var(--text1)",
+    fontSize: 14,
+    outline: "none",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.45)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 9999,
+      }}
+    >
+      <div
+        style={{
+          width: 520,
+          background: "var(--bg)",
+          borderRadius: 16,
+          border: "1px solid var(--border)",
+          padding: 24,
+          boxShadow: "0 20px 60px rgba(0,0,0,.35)",
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: 20, color: "var(--text1)" }}>
+          💰 Generate Payroll
+        </h2>
+
+        <div style={{ marginBottom: 16 }}>
+          <label>Employee</label>
+          <select
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Select Employee</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name} — {e.role}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 14,
+            marginBottom: 16,
+          }}
+        >
+          <div>
+            <label>Month</label>
+            <select
+              value={month}
+              onChange={(e) => setMonth(Number(e.target.value))}
+              style={inputStyle}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Year</label>
+            <select
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              style={inputStyle}
+            >
+              {[2024, 2025, 2026].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div
+          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+        >
+          <div>
+            <label>Basic Salary</label>
+            <input
+              type="number"
+              value={basicSalary}
+              onChange={(e) => setBasicSalary(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label>Bonus</label>
+            <input
+              type="number"
+              value={bonus}
+              onChange={(e) => setBonus(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <label>Deduction</label>
+          <input
+            type="number"
+            value={deduction}
+            onChange={(e) => setDeduction(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+
+        <div
+          style={{
+            marginTop: 20,
+            padding: 16,
+            borderRadius: 10,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div style={{ fontSize: 14, color: "var(--text2)" }}>Net Salary</div>
+          <div style={{ fontSize: 30, fontWeight: 700, color: "var(--gold)" }}>
+            ₹ {netSalary.toLocaleString("en-IN")}
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ marginTop: 12, fontSize: 13, color: "#EF4444" }}>
+            {error}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 12,
+            marginTop: 24,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "transparent",
+              cursor: "pointer",
+              color: "var(--text1)",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving}
+            style={{
+              padding: "10px 22px",
+              border: "none",
+              borderRadius: 8,
+              background: "var(--gold)",
+              color: "#000",
+              fontWeight: 700,
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? "Saving…" : "Save Payroll"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatCard({
   title,
   value,
@@ -542,13 +666,7 @@ function StatCard({
         border: `1px solid ${colors.border}`,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div
           style={{
             width: 40,
@@ -563,25 +681,11 @@ function StatCard({
         >
           <Icon size={20} color={color} />
         </div>
-
-        <span
-          style={{
-            color: colors.textSecondary,
-            fontSize: 14,
-          }}
-        >
+        <span style={{ color: colors.textSecondary, fontSize: 14 }}>
           {title}
         </span>
       </div>
-
-      <div
-        style={{
-          fontSize: 24,
-          fontWeight: 700,
-          color,
-          marginTop: 14,
-        }}
-      >
+      <div style={{ fontSize: 24, fontWeight: 700, color, marginTop: 14 }}>
         {value}
       </div>
     </div>
@@ -594,35 +698,4 @@ const th: React.CSSProperties = {
   fontSize: 14,
   fontWeight: 600,
 };
-
-const td: React.CSSProperties = {
-  padding: "16px",
-};
-
-const actionBtn: React.CSSProperties = {
-  border: "none",
-  color: "white",
-  width: 36,
-  height: 36,
-  borderRadius: 8,
-  cursor: "pointer",
-  fontSize: 15,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const actionBlue: React.CSSProperties = {
-  ...actionBtn,
-  background: "#2563EB",
-};
-
-const actionRed: React.CSSProperties = {
-  ...actionBtn,
-  background: "#DC2626",
-};
-
-const actionGreen: React.CSSProperties = {
-  ...actionBtn,
-  background: "#10B981",
-};
+const td: React.CSSProperties = { padding: "16px" };

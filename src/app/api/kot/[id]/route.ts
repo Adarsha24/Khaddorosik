@@ -26,17 +26,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       data: { status, ...(status === 'COMPLETED' && { completedAt: new Date() }) },
     })
 
-    if (status === 'READY' || status === 'COMPLETED') {
-      const pending = await prisma.kOT.count({
-        where: { orderId: kot.orderId, status: { in: ['PENDING', 'PREPARING'] } },
+   if (status === 'READY' || status === 'COMPLETED') {
+  const pending = await prisma.kOT.count({
+    where: { orderId: kot.orderId, status: { in: ['PENDING', 'PREPARING'] } },
+  })
+  if (pending === 0) {
+    // Don't downgrade an order that's already been paid or cancelled —
+    // KOT/kitchen status should never override a completed financial state.
+    const currentOrder = await prisma.order.findUnique({
+      where: { id: kot.orderId },
+      select: { status: true },
+    })
+    if (currentOrder && !['PAID', 'CANCELLED'].includes(currentOrder.status)) {
+      await prisma.order.update({
+        where: { id: kot.orderId },
+        data: { status: status === 'COMPLETED' ? 'SERVED' : 'READY' },
       })
-      if (pending === 0) {
-        await prisma.order.update({
-          where: { id: kot.orderId },
-          data: { status: status === 'COMPLETED' ? 'SERVED' : 'READY' },
-        })
-      }
     }
+  }
+}
 
     return ok(updated)
   } catch (e) {

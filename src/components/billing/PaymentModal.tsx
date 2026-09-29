@@ -6,7 +6,7 @@ import type { CartItem } from '@/types';
 type Props = {
   cart: CartItem[];
   onClose: () => void;
-  onConfirm: (method: string) => void;
+  onConfirm: (method: string, tipAmount: number) => void;
   total?: number;
   open?: boolean;
   contextLabel?: string;
@@ -25,6 +25,7 @@ const PAY_METHODS: { id: PayMethod; label: string }[] = [
 export default function PaymentModal({ cart, total, open, onClose, onConfirm, contextLabel }: Props) {
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
   const [tipOption, setTipOption] = useState<TipOption>('none');
+  const [customTip, setCustomTip] = useState('');
 
   if (open === false) return null;
 
@@ -35,7 +36,15 @@ export default function PaymentModal({ cart, total, open, onClose, onConfirm, co
     return sum + taxable + Math.round(taxable * 0.025) + Math.round(taxable * 0.025);
   }, 0);
 
-  const display = total ?? cartTotal;
+  const baseTotal = total ?? cartTotal;
+
+  const tipAmount =
+    tipOption === '5' ? Math.round(baseTotal * 0.05)
+    : tipOption === '10' ? Math.round(baseTotal * 0.10)
+    : tipOption === 'custom' ? (Number(customTip) || 0)
+    : 0;
+
+  const display = baseTotal + tipAmount;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center" onClick={onClose}>
@@ -56,6 +65,11 @@ export default function PaymentModal({ cart, total, open, onClose, onConfirm, co
         <div className="bg-[#f7f9f5] px-5 py-5 text-center border-b border-[#dce6df]">
           <div className="text-[32px] font-bold text-[#20302d]">Rs {display.toLocaleString('en-IN')}</div>
           <div className="text-[12px] text-[#80908a] mt-1">{contextLabel ?? 'Walk-in order'}</div>
+          {tipAmount > 0 && (
+            <div className="text-[11px] text-[#80908a] mt-1">
+              (Rs {baseTotal.toLocaleString('en-IN')} + Rs {tipAmount.toLocaleString('en-IN')} tip)
+            </div>
+          )}
         </div>
 
         <div className="px-5 pt-4">
@@ -93,10 +107,19 @@ export default function PaymentModal({ cart, total, open, onClose, onConfirm, co
                 </button>
               ))}
             </div>
+            {tipOption === 'custom' && (
+              <input
+                type="number"
+                value={customTip}
+                onChange={(e) => setCustomTip(e.target.value)}
+                placeholder="Enter tip amount"
+                className="w-full mt-2 px-3 py-2 rounded-lg border border-[#dce6df] text-[13px] outline-none"
+              />
+            )}
           </div>
 
           <button
-            onClick={() => onConfirm(payMethod)}
+            onClick={() => onConfirm(payMethod, tipAmount)}
             className="w-full py-3.5 rounded-xl bg-[#d9572b] text-white text-[15px] font-bold flex items-center justify-center gap-2 hover:bg-[#b94422] transition-colors cursor-pointer mb-5"
           >
             Confirm Payment - Rs {display.toLocaleString('en-IN')}

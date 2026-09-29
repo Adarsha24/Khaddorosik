@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { authenticate } from '@/lib/middleware'
+import { authenticate, authenticateRoles } from '@/lib/middleware'
 import { ok, serverError, validationError } from '@/lib/response'
 import { z } from 'zod'
 
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const auth = await authenticate(req)
+    const auth = await authenticateRoles(req, 'SUPER_ADMIN')
     if (auth instanceof Response) return auth
 
     const parsed = UpdateSchema.safeParse(await req.json())

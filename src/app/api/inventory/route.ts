@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search')
     const page = Math.max(1, Number(searchParams.get('page') ?? 1))
     const limit = Math.min(100, Number(searchParams.get('limit') ?? 20))
-
+    console.log('auth.restaurantId:', auth.restaurantId)
     const all = await prisma.inventoryItem.findMany({
       where: {
         restaurantId: auth.restaurantId,

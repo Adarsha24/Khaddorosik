@@ -16,8 +16,8 @@ const STATUS_ACTIONS: { status: string; label: string; color: string; bg: string
 ]
 
 export default function TableDetailSidebar({ table, onStatusChange, onNavigateBilling }: Props) {
-  if (!table) return (
-    <div style={{
+     if (!table) return (
+    <div className="table-detail-panel table-detail-panel-empty" style={{
       width: 260, background: 'var(--surface)', borderLeft: '1px solid var(--border)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       color: 'var(--text3)', fontSize: 12,
@@ -31,7 +31,7 @@ export default function TableDetailSidebar({ table, onStatusChange, onNavigateBi
   const totalRevenue = orders.reduce((s, o: { total?: string }) => s + parseFloat(o.total ?? '0'), 0)
 
   return (
-    <div style={{
+    <div className="table-detail-panel" style={{
       width: 260, background: 'var(--surface)', borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden',
     }}>

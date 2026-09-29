@@ -20,11 +20,27 @@ import {
   type ApiCategory,
   type ApiKOT,
 } from "@/lib/api";
+import BillPrint from "@/components/billing/BillPrint";
+import KOTPrint from "@/components/billing/KOTPrint";
 import type { CartItem, ToastType } from "@/types";
+import BillPrintLoader from "@/components/billing/BillPrintLoader";
+
+type KOTItemForPrint = {
+  name: string;
+  qty: number;
+  notes?: string;
+  veg?: boolean;
+};
+
+type OrderRecord = Awaited<ReturnType<typeof orders.list>>["data"][number];
 
 interface Props {
   toast: (msg: string, type: ToastType) => void;
-  onPayment: (cart: CartItem[], orderId?: string, contextLabel?: string) => void;
+  onPayment: (
+    cart: CartItem[],
+    orderId?: string,
+    contextLabel?: string,
+  ) => void;
   onNavigate: (id: string) => void;
 }
 
@@ -54,6 +70,25 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   const [orderId, setOrderId] = useState<string | undefined>();
   const [kotLoading, setKotLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [printKOT, setPrintKOT] = useState<{
+    items: KOTItemForPrint[];
+    billNo?: number;
+  } | null>(null);
+  const [orderHistory, setOrderHistory] = useState<
+    Awaited<ReturnType<typeof orders.list>>["data"]
+  >([]);
+  const [parcelOrders, setParcelOrders] = useState<
+    Awaited<ReturnType<typeof orders.list>>["data"]
+  >([]);
+  const [parcelLoading, setParcelLoading] = useState(false);
+  const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
+  const [showBillPrint, setShowBillPrint] = useState(false);
+  const [restaurant, setRestaurant] = useState<{
+    name: string;
+    address?: string;
+    phone?: string;
+    gstNumber?: string;
+  } | null>(null);
 
   useEffect(() => {
     setActiveTab(0);
@@ -101,6 +136,36 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
         .list("PENDING,PREPARING,READY")
         .then(setKotOrders)
         .catch(() => {});
+    }
+  }, [activeTab]);
+
+  // Fetch order history when switching to Order History tab
+  useEffect(() => {
+    if (activeTab === 2) {
+      setOrderHistoryLoading(true);
+      orders
+        .list({ limit: "50" })
+        .then((res) => setOrderHistory(res.data))
+        .catch(() => {})
+        .finally(() => setOrderHistoryLoading(false));
+    }
+  }, [activeTab]);
+
+  // Fetch parcel (Takeaway/Delivery) orders when switching to Parcel tab
+  useEffect(() => {
+    if (activeTab === 3) {
+      setParcelLoading(true);
+      orders
+        .list({ limit: "50" })
+        .then((res) =>
+          setParcelOrders(
+            res.data.filter(
+              (o) => o.orderType === "TAKEAWAY" || o.orderType === "DELIVERY",
+            ),
+          ),
+        )
+        .catch(() => {})
+        .finally(() => setParcelLoading(false));
     }
   }, [activeTab]);
 
@@ -188,8 +253,12 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
     if (cartItems.length === 0) return;
     setKotLoading(true);
     try {
-      await createOrder();
+      const newOrderId = await createOrder();
       toast("KOT sent to kitchen 🍳", "kitchen");
+      setPrintKOT({
+        items: cartItems.map((i) => ({ name: i.name, qty: i.qty, veg: i.veg })),
+        billNo: undefined,
+      });
       setActiveTab(1);
     } catch (e) {
       toast("Failed to send KOT", "info");
@@ -236,7 +305,10 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   return (
     <div className="billing-screen flex flex-1 overflow-hidden">
       {/* ── LEFT: Menu panel ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{ minHeight: 0 }}
+      >
         {/* Tab bar — inline styles to avoid Tailwind purge on Vercel */}
         <div
           className="flex flex-shrink-0 px-4"
@@ -349,7 +421,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       >
                         <span
                           className="font-extrabold min-w-[18px]"
-                          style={{ color: "var(--primary)" }}
+                          style={{ color: "var(--primary, #f59e0b)" }}
                         >
                           {item.quantity}×
                         </span>
@@ -378,12 +450,17 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                     style={{ borderTop: "1px solid var(--border)" }}
                   >
                     <button
-                      onClick={() => toast("KOT reprinted", "kitchen")}
-                      className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer"
-                      style={{
-                        border: "1px solid var(--border)",
-                        background: "var(--surface2)",
-                        color: "var(--text2)",
+                      onClick={() => {
+                        setPrintKOT({
+                          items: order.kotItems.map((item) => ({
+                            name: item.orderItem?.menuItem?.name ?? "Item",
+                            qty: item.quantity,
+                            veg: item.orderItem?.menuItem?.veg,
+                            notes: item.orderItem?.notes,
+                          })),
+                          billNo: order.order?.billNo,
+                        });
+                        toast("KOT reprinted", "kitchen");
                       }}
                     >
                       Reprint
@@ -417,67 +494,372 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
           </div>
         )}
 
-        {/* ── Tab 2: Order History empty state ── */}
+        {/* ── Tab 2: Order History ── */}
         {activeTab === 2 && (
           <div
-            className="flex-1 flex flex-col items-center justify-center"
-            style={{ color: "var(--text3)", background: "var(--surface2)" }}
+            className="flex-1 overflow-y-auto p-4"
+            style={{ background: "var(--surface2)" }}
           >
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🧾</div>
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: "var(--text1)",
-                marginBottom: 6,
-              }}
-            >
-              No order history yet
-            </div>
-            <div
-              style={{ fontSize: 13, color: "var(--text3)", marginBottom: 20 }}
-            >
-              Completed orders will appear here
-            </div>
-            <button
-              onClick={() => setActiveTab(0)}
-              className="px-5 py-2 rounded-lg text-[13px] font-semibold text-white cursor-pointer"
-              style={{ background: "var(--primary)", border: "none" }}
-            >
-              + Create New Order
-            </button>
+            {orderHistoryLoading ? (
+              <div
+                style={{
+                  color: "var(--text3)",
+                  padding: 40,
+                  textAlign: "center",
+                }}
+              >
+                Loading order history…
+              </div>
+            ) : orderHistory.length === 0 ? (
+              <div
+                className="flex-1 flex flex-col items-center justify-center"
+                style={{ color: "var(--text3)", paddingTop: 60 }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🧾</div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "var(--text1)",
+                    marginBottom: 6,
+                  }}
+                >
+                  No order history yet
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text3)",
+                    marginBottom: 20,
+                  }}
+                >
+                  Completed orders will appear here
+                </div>
+                <button
+                  onClick={() => setActiveTab(0)}
+                  className="px-5 py-2 rounded-lg text-[13px] font-semibold text-white cursor-pointer"
+                  style={{ background: "var(--primary)", border: "none" }}
+                >
+                  + Create New Order
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 12,
+                  }}
+                >
+                  <thead>
+                    <tr style={{ background: "var(--surface2)" }}>
+                      {["Bill #", "Type", "Time", "Status", "Total"].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            style={{
+                              padding: "10px 16px",
+                              textAlign: "left",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: "var(--text3)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                              borderBottom: "1px solid var(--border)",
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ),
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderHistory.map((o) => (
+                      <tr
+                        key={o.id}
+                        onClick={() => {
+                          setOrderId(o.id);
+                          setShowBillPrint(true);
+                        }}
+                        style={{
+                          borderBottom: "1px solid var(--border)",
+                          cursor: "pointer",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "var(--surface2)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "")
+                        }
+                      >
+                        <td
+                          style={{
+                            padding: "10px 16px",
+                            fontWeight: 600,
+                            color: "var(--text1)",
+                          }}
+                        >
+                          #{o.billNo ? String(o.billNo).padStart(4, "0") : "—"}
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 16px",
+                            color: "var(--text2)",
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {o.orderType.replace("_", " ").toLowerCase()}
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 16px",
+                            color: "var(--text3)",
+                          }}
+                        >
+                          {new Date(o.createdAt).toLocaleString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td style={{ padding: "10px 16px" }}>
+                          <span
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: 99,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              background:
+                                o.status === "PAID"
+                                  ? "var(--green-bg)"
+                                  : "var(--surface3)",
+                              color:
+                                o.status === "PAID"
+                                  ? "var(--green)"
+                                  : "var(--text3)",
+                            }}
+                          >
+                            {o.status}
+                          </span>
+                        </td>
+                        <td
+                          style={{
+                            padding: "10px 16px",
+                            fontWeight: 700,
+                            color: "var(--primary, #f59e0b)",
+                          }}
+                        >
+                          ₹{Number(o.total).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {/* ── Tab 3: Parcel empty state ── */}
+        {/* ── Tab 3: Parcel ── */}
         {activeTab === 3 && (
           <div
-            className="flex-1 flex flex-col items-center justify-center"
-            style={{ color: "var(--text3)", background: "var(--surface2)" }}
+            className="flex-1 overflow-y-auto p-4"
+            style={{ background: "var(--surface2)" }}
           >
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: "var(--text1)",
-                marginBottom: 6,
-              }}
-            >
-              No parcel orders
-            </div>
-            <div
-              style={{ fontSize: 13, color: "var(--text3)", marginBottom: 20 }}
-            >
-              Takeaway parcel orders will appear here
-            </div>
-            <button
-              onClick={() => setActiveTab(0)}
-              className="px-5 py-2 rounded-lg text-[13px] font-semibold text-white cursor-pointer"
-              style={{ background: "var(--primary)", border: "none" }}
-            >
-              + New Parcel Order
-            </button>
+            {parcelLoading ? (
+              <div
+                style={{
+                  color: "var(--text3)",
+                  padding: 40,
+                  textAlign: "center",
+                }}
+              >
+                Loading parcel orders…
+              </div>
+            ) : parcelOrders.length === 0 ? (
+              <div
+                className="flex-1 flex flex-col items-center justify-center"
+                style={{ color: "var(--text3)", paddingTop: 60 }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "var(--text1)",
+                    marginBottom: 6,
+                  }}
+                >
+                  No parcel orders
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--text3)",
+                    marginBottom: 20,
+                  }}
+                >
+                  Takeaway and delivery orders will appear here
+                </div>
+                <button
+                  onClick={() => setActiveTab(0)}
+                  className="px-5 py-2 rounded-lg text-[13px] font-semibold text-white cursor-pointer"
+                  style={{ background: "var(--primary)", border: "none" }}
+                >
+                  + New Parcel Order
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                  gap: 12,
+                }}
+              >
+                {parcelOrders.map((o) => (
+                  <div
+                    key={o.id}
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "10px 14px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background:
+                          o.orderType === "DELIVERY"
+                            ? "var(--blue-bg)"
+                            : "var(--amber-bg, #fff4dc)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 800,
+                          color:
+                            o.orderType === "DELIVERY"
+                              ? "var(--blue)"
+                              : "#c88716",
+                        }}
+                      >
+                        {o.orderType === "DELIVERY"
+                          ? "🛵 Delivery"
+                          : "🥡 Takeaway"}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 99,
+                          background:
+                            o.status === "PAID"
+                              ? "var(--green-bg)"
+                              : "var(--surface3)",
+                          color:
+                            o.status === "PAID"
+                              ? "var(--green)"
+                              : "var(--text3)",
+                        }}
+                      >
+                        {o.status}
+                      </span>
+                    </div>
+
+                    <div style={{ padding: "12px 14px" }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "var(--text1)",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Bill #
+                        {o.billNo ? String(o.billNo).padStart(4, "0") : "—"}
+                      </div>
+                      {o.customer?.name && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--text2)",
+                            marginBottom: 2,
+                          }}
+                        >
+                          {o.customer.name}
+                          {o.customer.phone ? ` · ${o.customer.phone}` : ""}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: "var(--text3)" }}>
+                        {new Date(o.createdAt).toLocaleString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 800,
+                          color: "var(--primary, #f59e0b)",
+                          marginTop: 8,
+                        }}
+                      >
+                        ₹{Number(o.total).toFixed(2)}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: "8px 14px",
+                        borderTop: "1px solid var(--border)",
+                        display: "flex",
+                        gap: 6,
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          setOrderId(o.id);
+                          setShowBillPrint(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "7px 0",
+                          borderRadius: 7,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          border: "1px solid var(--border)",
+                          background: "var(--surface2)",
+                          color: "var(--text2)",
+                        }}
+                      >
+                        🧾 Print Bill
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -519,7 +901,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                     filter === f
                       ? {
                           background: "var(--primary-light)",
-                          color: "var(--primary)",
+                          color: "var(--primary, #f59e0b)",
                           border: "1px solid #efb29f",
                         }
                       : {
@@ -580,19 +962,21 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             </div>
 
             {/* Items grid */}
+            {/* Items grid */}
             <div
               className="flex-1 overflow-y-auto p-3"
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(136px, 1fr))",
-                gap: 10,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 15,
                 alignContent: "start",
+                minHeight: 0,
               }}
             >
               {items.length === 0 && (
                 <div
                   style={{
-                    gridColumn: "1/-1",
+                    width: "100%",
                     textAlign: "center",
                     padding: 40,
                     color: "var(--text3)",
@@ -616,8 +1000,13 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                   <div
                     key={item.id}
                     onClick={() => addItem(item.id)}
-                    className="rounded-xl overflow-hidden cursor-pointer transition-all"
+                    className="rounded-xl overflow-hidden cursor-pointer"
                     style={{
+                      width: 160,
+                      flex: "0 0 160px",
+                      height: 190,
+                      display: "flex",
+                      flexDirection: "column",
                       background: "var(--surface)",
                       border: `1px solid ${inCart ? "var(--green)" : "var(--border)"}`,
                     }}
@@ -626,7 +1015,6 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       el.style.borderColor = inCart
                         ? "var(--green)"
                         : "var(--primary)";
-                      el.style.transform = "translateY(-1px)";
                       el.style.boxShadow = "0 4px 12px rgba(232,92,38,0.12)";
                     }}
                     onMouseLeave={(e) => {
@@ -634,13 +1022,16 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                       el.style.borderColor = inCart
                         ? "var(--green)"
                         : "var(--border)";
-                      el.style.transform = "";
                       el.style.boxShadow = "";
                     }}
                   >
                     <div
-                      className="h-[82px] relative overflow-hidden"
-                      style={{ background: "var(--surface3)" }}
+                      className="relative overflow-hidden"
+                      style={{
+                        height: 82,
+                        flexShrink: 0,
+                        background: "var(--surface3)",
+                      }}
                     >
                       {item.imageUrl && (
                         <img
@@ -649,10 +1040,6 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                           className="w-full h-full object-cover"
                         />
                       )}
-                      <div
-                        className="absolute inset-0 flex items-center justify-center"
-                        style={{ fontSize: 30, background: "rgba(0,0,0,0)" }}
-                      ></div>
                       <div
                         className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-sm flex items-center justify-center"
                         style={{
@@ -686,17 +1073,31 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                         }}
                       />
                     </div>
-                    <div className="p-2">
+                    <div
+                      className="p-2"
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        minHeight: 0,
+                      }}
+                    >
                       <div
-                        className="text-[11.5px] font-semibold leading-tight mb-1 overflow-hidden"
-                        style={{ color: "var(--text1)", height: 29 }}
+                        className="text-[11.5px] font-semibold mb-1"
+                        style={{
+                          color: "var(--text1)",
+                          lineHeight: "1.2em",
+                          maxHeight: "2.4em",
+                          overflow: "hidden",
+                        }}
                       >
                         {item.name}
                       </div>
                       <div className="flex items-center justify-between">
                         <span
                           className="text-[13px] font-bold"
-                          style={{ color: "var(--primary)" }}
+                          style={{ color: "var(--primary, #f59e0b)" }}
                         >
                           ₹{price}
                         </span>
@@ -718,7 +1119,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                             </button>
                             <span
                               className="text-[12px] font-bold min-w-[16px] text-center"
-                              style={{ color: "var(--primary)" }}
+                              style={{ color: "var(--primary, #f59e0b)" }}
                             >
                               {inCart.qty}
                             </span>
@@ -872,8 +1273,15 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                     }}
                   />
                   <div
-                    className="flex-1 text-[12px] font-medium"
-                    style={{ color: "var(--text1)" }}
+                    className="text-[11.5px] font-semibold leading-tight mb-1"
+                    style={{
+                      color: "var(--text1)",
+                      display: "-webkit-box",
+                      WebkitLineClamp: "2",
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      minHeight: 29,
+                    }}
                   >
                     {item.name}
                   </div>
@@ -996,7 +1404,7 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
               }}
             >
               <span>Grand Total</span>
-              <span style={{ color: "var(--primary)" }}>₹{grand}</span>
+              <span style={{ color: "var(--primary, #f59e0b)" }}>₹{grand}</span>
             </div>
             <div className="mt-1.5">
               <span
@@ -1055,6 +1463,19 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
               </button>
             ))}
           </div>
+          {orderId && (
+            <button
+              onClick={() => setShowBillPrint(true)}
+              className="w-full py-2 mb-2 rounded-lg text-[12px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+              style={{
+                border: "1px solid var(--border)",
+                background: "var(--surface2)",
+                color: "var(--text2)",
+              }}
+            >
+              🧾 Print Bill
+            </button>
+          )}
           <button
             onClick={proceedToPayment}
             className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all"
@@ -1078,6 +1499,29 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
           </button>
         </div>
       </div>
+      {printKOT && (
+        <KOTPrint
+          items={printKOT.items}
+          billNo={printKOT.billNo}
+          orderType={
+            orderType === "Dine In"
+              ? "DINE_IN"
+              : orderType === "Takeaway"
+                ? "TAKEAWAY"
+                : "DELIVERY"
+          }
+          tableNo={tableNo ?? undefined}
+          onClose={() => setPrintKOT(null)}
+        />
+      )}
+
+      {showBillPrint && orderId && (
+        <BillPrintLoader
+          orderId={orderId}
+          tableNo={tableNo ?? undefined}
+          onClose={() => setShowBillPrint(false)}
+        />
+      )}
     </div>
   );
 }

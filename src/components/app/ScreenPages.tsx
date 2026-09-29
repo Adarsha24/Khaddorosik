@@ -13,6 +13,8 @@ import TablesScreen from '@/components/tables/TablesScreen'
 import type { ScreenId } from '@/types'
 import { usePayment } from './PaymentProvider'
 import { useToast } from './ToastProvider'
+import ShiftScreen from '../shift/ShiftScreen'
+import AuditLogScreen from '../audit/AuditLogScreen'
 
 const ROUTES: Record<ScreenId, string> = {
   dashboard: '/dashboard',
@@ -23,7 +25,10 @@ const ROUTES: Record<ScreenId, string> = {
   reports: '/reports',
   inventory: '/inventory',
   employees: '/employees',
+  payroll: '/payroll',
   crm: '/crm',
+  shift: '/shift',
+  auditlog: '/audit-log',
 }
 
 function useRouteNavigation() {
@@ -82,4 +87,14 @@ export function EmployeesPage() {
 export function CRMPage() {
   const toast = useToast()
   return <CRMScreen toast={toast} />
+}
+
+export function ShiftPage() {
+  const toast = useToast()
+  return <ShiftScreen toast={toast} />
+}
+
+export function AuditLogPage() {
+  const toast = useToast()
+  return <AuditLogScreen toast={toast} />
 }

@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 
 export type ScreenId =
   | 'dashboard' | 'billing' | 'tables' | 'kitchen'
-  | 'reservation' | 'reports' | 'inventory' | 'employees' | 'crm'
+  | 'reservation' | 'reports' | 'inventory' | 'employees' | 'crm' | 'payroll' | 'shift' | 'auditlog'
 
 const ROUTES: Record<ScreenId, string> = {
   dashboard: '/dashboard',
@@ -17,6 +17,9 @@ const ROUTES: Record<ScreenId, string> = {
   inventory: '/inventory',
   employees: '/employees',
   crm: '/crm',
+  payroll: '/payroll',
+  shift: '/shift',
+  auditlog: '/audit-log',
 }
 
 const NAV: { id: ScreenId; icon: string; label: string; href: string; roles?: string[] }[] = [
@@ -29,6 +32,9 @@ const NAV: { id: ScreenId; icon: string; label: string; href: string; roles?: st
   { id: 'inventory', icon: 'ST', label: 'Stock', href: ROUTES.inventory, roles: ['SUPER_ADMIN', 'MANAGER'] },
   { id: 'employees', icon: 'SF', label: 'Staff', href: ROUTES.employees, roles: ['SUPER_ADMIN', 'MANAGER'] },
   { id: 'crm', icon: 'CR', label: 'CRM', href: ROUTES.crm },
+  { id: 'payroll', icon: 'PY', label: 'Payroll', href: ROUTES.payroll, roles: ['SUPER_ADMIN', 'MANAGER'] },
+  { id: 'shift', icon: 'SH', label: 'Shift', href: ROUTES.shift, roles: ['SUPER_ADMIN', 'MANAGER', 'CASHIER'] },
+  { id: 'auditlog', icon: 'AL', label: 'Activity', href: ROUTES.auditlog, roles: ['SUPER_ADMIN', 'MANAGER'] },
 ]
 
 type Props = {

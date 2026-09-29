@@ -9,6 +9,8 @@ export type ScreenId =
   | 'employees'
   | 'crm'
   | 'payroll'
+  | 'shift'
+  | 'auditlog'
 
 export type ToastType = 'success' | 'kitchen' | 'info'
 

@@ -22,6 +22,7 @@ export interface AuthUser {
   restaurantId: string
   name: string
   restaurant: Restaurant
+  mustChangePassword: boolean
 }
 
 interface AuthCtx {
@@ -31,11 +32,13 @@ interface AuthCtx {
   loginWithOtp: (email: string, code: string) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
+  markPasswordChanged: () => void
 }
 
 const Ctx = createContext<AuthCtx>({
   user: null, loading: true,
   login: async () => {}, loginWithOtp: async () => {}, logout: async () => {}, refreshUser: async () => {},
+  markPasswordChanged: () => {},
 })
 
 async function fetchMe(token: string): Promise<AuthUser> {
@@ -46,6 +49,7 @@ async function fetchMe(token: string): Promise<AuthUser> {
     id: data.id, email: data.email, role: data.role,
     restaurantId: data.restaurantId, name: data.name ?? data.email,
     restaurant: data.restaurant,
+    mustChangePassword: data.mustChangePassword ?? false,
   }
 }
 
@@ -61,6 +65,7 @@ async function doLogin(email: string, password: string): Promise<AuthUser> {
     id: json.data.user.id, email: json.data.user.email, role: json.data.user.role,
     restaurantId: json.data.user.restaurantId, name: json.data.user.name,
     restaurant: json.data.user.restaurant,
+    mustChangePassword: json.data.user.mustChangePassword ?? false,
   }
 }
 
@@ -76,6 +81,7 @@ async function doOtpLogin(email: string, code: string): Promise<AuthUser> {
     id: json.data.user.id, email: json.data.user.email, role: json.data.user.role,
     restaurantId: json.data.user.restaurantId, name: json.data.user.name,
     restaurant: json.data.user.restaurant,
+    mustChangePassword: json.data.user.mustChangePassword ?? false,
   }
 }
 
@@ -122,7 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
-  return <Ctx.Provider value={{ user, loading, login, loginWithOtp, logout, refreshUser }}>{children}</Ctx.Provider>
+  // Called after a successful password change, so the blocking screen
+  // disappears immediately without needing a full re-login.
+  const markPasswordChanged = useCallback(() => {
+    setUser((prev) => (prev ? { ...prev, mustChangePassword: false } : prev))
+  }, [])
+
+  return (
+    <Ctx.Provider value={{ user, loading, login, loginWithOtp, logout, refreshUser, markPasswordChanged }}>
+      {children}
+    </Ctx.Provider>
+  )
 }
 
 export const useAuth = () => useContext(Ctx)

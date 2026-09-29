@@ -118,8 +118,8 @@ export default function TablesScreen({ toast, onNavigate }: Props) {
         ))}
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="tables-body" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div className="tables-grid-col" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Section tabs */}
           {sections.length > 0 && (

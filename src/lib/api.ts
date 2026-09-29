@@ -60,7 +60,22 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error('Session expired')
   }
 
-  const data = await res.json()
+  const text = await res.text()
+  let data: any = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      throw new Error(`Invalid JSON response (${res.status}): ${text.slice(0, 200)}`)
+    }
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.message ?? data?.error ?? `Request failed (${res.status})`)
+  }
+  if (!data) {
+    throw new Error(`Empty response from server (${res.status}) for ${path}`)
+  }
   if (!data.success) throw new Error(data.message ?? data.error ?? 'API error')
   return data.data as T
 }
@@ -69,6 +84,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const auth = {
   me: () => apiFetch<ApiMe>('/auth/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   logout: async () => {
     const refreshToken = localStorage.getItem('refresh_token')
     try { await apiFetch('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }) } catch {}
@@ -141,7 +158,7 @@ export const payments = {
     const qs = orderId ? `?orderId=${orderId}` : ''
     return apiFetch<ApiPayment[]>(`/payments${qs}`)
   },
-  create: (data: { orderId: string; method: string; reference?: string; splits?: { method: string; amount: number }[] }) =>
+  create: (data: { orderId: string; method: string; reference?: string; tipAmount?: number; splits?: { method: string; amount: number }[] }) =>
     apiFetch<ApiPayment>('/payments', { method: 'POST', body: JSON.stringify(data) }),
 }
 
@@ -222,11 +239,21 @@ export const discounts = {
 // ─── Shifts ───────────────────────────────────────────────────────────────────
 
 export const shifts = {
-  current: () => apiFetch<ApiShift[]>('/shifts?status=OPEN'),
+  current: () => apiFetch<{ shifts: ApiShift[]; reconciliation: ApiShiftReconciliation | null }>('/shifts?status=OPEN'),
   open: (openingCash: number, notes?: string) =>
     apiFetch<ApiShift>('/shifts', { method: 'POST', body: JSON.stringify({ action: 'open', openingCash, notes }) }),
   close: (closingCash: number, notes?: string) =>
-    apiFetch<ApiShift>('/shifts', { method: 'POST', body: JSON.stringify({ action: 'close', closingCash, notes }) }),
+    apiFetch<ApiShift & ApiShiftReconciliation>('/shifts', { method: 'POST', body: JSON.stringify({ action: 'close', closingCash, notes }) }),
+}
+
+// ─── Payroll ──────────────────────────────────────────────────────────────────
+
+export const payroll = {
+  list: () => apiFetch<ApiPayroll[]>('/payroll'),
+  create: (data: { employeeId: string; month: number; year: number; basicSalary: number; bonus?: number; deduction?: number }) =>
+    apiFetch<ApiPayroll>('/payroll', { method: 'POST', body: JSON.stringify(data) }),
+  updateStatus: (id: string, status: 'PENDING' | 'PAID') =>
+    apiFetch<ApiPayroll>(`/payroll/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 }
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────
@@ -243,6 +270,15 @@ export const restaurant = {
   update: (data: unknown) => apiFetch<ApiRestaurant>('/restaurants', { method: 'PATCH', body: JSON.stringify(data) }),
 }
 
+// ─── Restaurant ───────────────────────────────────────────────────────────────
+
+export const auditLogs = {
+  list: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params) : ''
+    return apiFetch<ApiAuditLog[]>(`/audit-logs${qs}`)
+  },
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ApiMeta { total: number; page: number; limit: number; totalPages: number }
@@ -255,6 +291,7 @@ export interface ApiRestaurant {
 
 export interface ApiMe {
   id: string; email: string; role: string; restaurantId: string; name: string
+  mustChangePassword?: boolean
   employee?: { name: string; role: string; phone?: string }
   restaurant: ApiRestaurant
 }
@@ -292,13 +329,13 @@ export interface ApiOrderItem {
 }
 
 export interface ApiPayment {
-  id: string; orderId: string; amount: string; method: string; status: string; reference?: string
+  id: string; orderId: string; amount: string; tipAmount?: string; method: string; status: string; reference?: string
   splits?: { id: string; method: string; amount: string }[]
 }
 
 export interface ApiKOT {
   id: string; status: string; tableId?: string; createdAt: string
-  order?: { id: string; orderType: string; tableId?: string; billNo?: number }
+  order?: { id: string; orderType: string; tableId?: string; billNo?: number; table?: { number: number } }
   kotItems: {
     id: string; done: boolean; quantity: number
     orderItem?: { id: string; notes?: string; menuItem?: { id: string; name: string; veg: boolean } }
@@ -342,6 +379,33 @@ export interface ApiShift {
   openedAt: string; closedAt?: string; notes?: string
 }
 
+export interface ApiPayroll {
+  id: string;
+  employeeId: string;
+  month: number;
+  year: number;
+  basicSalary: number;
+  bonus: number;
+  deduction: number;
+  netSalary: number;
+  status: 'PENDING' | 'PAID';
+  paidAt?: string;
+  createdAt: string;
+  employee?: { id: string; name: string; role: string };
+}
+
+export interface ApiShift {
+  id: string; status: string; openingCash: string; closingCash?: string
+  openedAt: string; closedAt?: string; notes?: string
+}
+
+export interface ApiShiftReconciliation {
+  expectedCash: number
+  cashCollected: number
+  cashPaymentCount: number
+  variance?: number
+}
+
 export interface ApiSupplier {
   id: string; name: string; contactName?: string; email?: string; phone?: string; address?: string; active: boolean
   _count?: { inventory: number }
@@ -370,4 +434,15 @@ export interface ApiSalesReport {
 export interface ApiItemsReport {
   topItems: { menuItemId: string; name: string; category: string; totalQty: number; revenue: number; veg: boolean }[]
   categoryBreakdown: Record<string, { qty: number; revenue: number }>
+}
+
+
+export interface ApiAuditLog {
+  id: string
+  action: string
+  entityType: string
+  entityId?: string
+  details?: Record<string, unknown>
+  userName: string
+  createdAt: string
 }

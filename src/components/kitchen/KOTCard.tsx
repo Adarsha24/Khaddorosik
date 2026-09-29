@@ -48,9 +48,21 @@ interface Props {
   onItemDone: (kotId: string, itemId: string, done: boolean) => Promise<void>
 }
 
+type KOTItemRow = NonNullable<ApiKOT['kotItems']>[number] & {
+  orderItem?: {
+    notes?: string | null
+    menuItem?: {
+      name?: string | null
+      veg?: boolean | null
+    } | null
+  } | null
+}
+
 export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
   const elapsed = useElapsed(kot.createdAt)
-  const [items, setItems] = useState(kot.kotItems.map(i => ({ ...i })))
+  const [items, setItems] = useState<KOTItemRow[]>(
+    (kot.kotItems ?? []).map(i => ({ ...i } as KOTItemRow))
+  )
   const [busy, setBusy] = useState(false)
 
   const allDone = items.every(i => i.done)
@@ -73,8 +85,10 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
   }
 
   const tableLabel = kot.order?.orderType === 'TAKEAWAY' ? 'Takeaway'
-    : kot.order?.orderType === 'DELIVERY' ? 'Delivery'
-    : `Table ${kot.order?.tableId ? '#' + (kot.order.billNo ?? '?') : '?'}`
+      : kot.order?.orderType === 'DELIVERY' ? 'Delivery'
+      // : kot.order?.tableId ? `Table #${String(kot.order.tableId)}`
+      : kot.order?.table?.number ? `Table #${kot.order.table.number}`
+      : 'Dine-In — No Table'
 
   const billLabel = kot.order?.billNo ? `#${String(kot.order.billNo).padStart(4, '0')}` : ''
 
@@ -89,10 +103,8 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
       boxShadow: '0 2px 12px rgba(0,0,0,0.18)',
       background: 'var(--surface)',
     }}>
-      {/* Left urgency bar */}
       <div style={{ height: 4, background: leftBar(kot.status, kot.createdAt) }} />
 
-      {/* Header */}
       <div style={{
         padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: headerBg(kot.status),
@@ -109,7 +121,6 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
         </span>
       </div>
 
-      {/* Status pill */}
       <div style={{
         padding: '4px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase',
         background: kot.status === 'PENDING'   ? 'var(--amber-bg)'  :
@@ -122,7 +133,6 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
         {kot.status === 'PENDING' ? '⏳ Waiting' : kot.status === 'PREPARING' ? '🔥 Cooking' : kot.status === 'READY' ? '✅ Ready' : '🏁 Done'}
       </div>
 
-      {/* Items */}
       <div style={{ padding: '6px 0', flex: 1 }}>
         {items.map((item) => (
           <div key={item.id} style={{
@@ -143,7 +153,6 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
                 </span>
               )}
             </span>
-            {/* Veg/non-veg dot */}
             <span style={{ fontSize: 9 }}>
               {item.orderItem?.menuItem?.veg ? '🟢' : '🔴'}
             </span>
@@ -164,7 +173,6 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
         ))}
       </div>
 
-      {/* Footer */}
       <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
         {kot.status === 'PENDING' && (
           <button onClick={advance} disabled={busy} style={{

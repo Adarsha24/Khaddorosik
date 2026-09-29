@@ -43,3 +43,15 @@ export const validationError = (errors: unknown) =>
 
 export const conflict = (message: string) =>
   err(message, 409, 'CONFLICT')
+
+export function tooManyRequests(retryAfterSeconds?: number) {
+  return Response.json(
+    {
+      success: false,
+      error: 'Too many attempts. Please try again later.',
+      code: 'RATE_LIMITED',
+      ...(retryAfterSeconds !== undefined && { retryAfterSeconds }),
+    },
+    { status: 429 }
+  )
+}

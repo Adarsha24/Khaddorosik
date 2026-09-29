@@ -828,6 +828,7 @@ function AddStaffModal({
     phone: "",
     email: "",
     password: "",
+    salary: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -836,28 +837,33 @@ function AddStaffModal({
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const submit = async () => {
-    if (!form.name.trim()) {
-      toast("Name is required", "info");
-      return;
-    }
-    setSaving(true);
-    try {
-      await employeesApi.create({
-        name: form.name.trim(),
-        role: form.role,
-        userRole: form.userRole,
-        phone: form.phone || undefined,
-        email: form.email || undefined,
-        password: form.password || undefined,
-      });
-      onAdded();
-    } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : "Failed to add staff", "info");
-    } finally {
-      setSaving(false);
-    }
-  };
+const submit = async () => {
+  if (!form.name.trim()) {
+    toast("Name is required", "info");
+    return;
+  }
+  if (!form.salary || Number(form.salary) <= 0) {
+    toast("Monthly salary is required", "info");
+    return;
+  }
+  setSaving(true);
+  try {
+    await employeesApi.create({
+      name: form.name.trim(),
+      role: form.role,
+      userRole: form.userRole,
+      phone: form.phone || undefined,
+      email: form.email || undefined,
+      password: form.password || undefined,
+      salary: Number(form.salary),
+    });
+    onAdded();
+  } catch (e: unknown) {
+    toast(e instanceof Error ? e.message : "Failed to add staff", "info");
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <div
@@ -1014,6 +1020,40 @@ function AddStaffModal({
                 ))}
               </select>
             </div>
+          </div>
+           <div>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--text3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                display: "block",
+                marginBottom: 4,
+              }}
+            >
+              Monthly Salary *
+            </label>
+            <input
+              type="number"
+              placeholder="e.g. 18000"
+              value={form.salary}
+              onChange={set("salary")}
+              style={{
+                width: "100%",
+                height: 36,
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: "0 12px",
+                fontSize: 13,
+                background: "var(--surface2)",
+                color: "var(--text1)",
+                outline: "none",
+                boxSizing: "border-box",
+                fontFamily: "inherit",
+              }}
+            />
           </div>
           {[
             {

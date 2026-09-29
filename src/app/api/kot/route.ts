@@ -26,7 +26,24 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'asc' },
     })
 
-    return ok(kots)
+    // Resolve real table numbers separately, since Order has no direct relation to RestaurantTable
+    const tableIds = [...new Set(kots.map((k) => k.order?.tableId).filter((id): id is string => !!id))]
+    const tables = tableIds.length
+      ? await prisma.restaurantTable.findMany({
+          where: { id: { in: tableIds } },
+          select: { id: true, number: true },
+        })
+      : []
+    const tableNumberMap = new Map(tables.map((t) => [t.id, t.number]))
+
+    const hydrated = kots.map((k) => ({
+      ...k,
+      order: k.order
+        ? { ...k.order, table: k.order.tableId ? { number: tableNumberMap.get(k.order.tableId) } : undefined }
+        : undefined,
+    }))
+
+    return ok(hydrated)
   } catch (e) {
     console.error('[GET /api/kot]', e)
     return serverError()
