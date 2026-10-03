@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   HandCoins,
   Search,
-  Moon,
-  Sun,
   LucideIcon,
 } from "lucide-react";
 import {
@@ -17,8 +15,7 @@ import {
   ApiPayroll,
   ApiEmployee,
 } from "@/lib/api";
-
-type Theme = "dark" | "light";
+import { useTheme } from "@/context/ThemeContext";
 
 const MONTHS = [
   "January",
@@ -35,19 +32,19 @@ const MONTHS = [
   "December",
 ];
 
-function getColors(theme: Theme) {
+function getColors(theme: "dark" | "light") {
   const isDark = theme === "dark";
   return {
     isDark,
-    pageBg: isDark ? "#0B1220" : "#F3F4F6",
-    cardBg: isDark ? "#111827" : "#FFFFFF",
-    border: isDark ? "#333333" : "#E5E7EB",
+    pageBg: "var(--bg)",
+    cardBg: "var(--surface)",
+    border: "var(--border)",
     textPrimary: isDark ? "#FFFFFF" : "#111827",
     textSecondary: isDark ? "#9CA3AF" : "#6B7280",
-    tableHeaderBg: isDark ? "#111827" : "#F9FAFB",
+    tableHeaderBg: "var(--surface)",
     tableRowHover: isDark ? "#1F2937" : "#F3F4F6",
     tableBorder: isDark ? "#374151" : "#E5E7EB",
-    inputBg: isDark ? "#111827" : "#FFFFFF",
+    inputBg: "var(--surface)",
     inputBorder: isDark ? "#2B3545" : "#D1D5DB",
     inputText: isDark ? "#FFFFFF" : "#111827",
     inputPlaceholderIcon: isDark ? "#94A3B8" : "#9CA3AF",
@@ -66,9 +63,10 @@ export default function PayrollScreen() {
   const [employeeList, setEmployeeList] = useState<ApiEmployee[]>([]);
   const [search, setSearch] = useState("");
   const [openModal, setOpenModal] = useState(false);
-  const [theme, setTheme] = useState<Theme>("dark");
   const [loading, setLoading] = useState(true);
 
+  // Follows the top bar's day/night button
+  const { theme } = useTheme();
   const c = getColors(theme);
 
   const load = useCallback(async (silent = false) => {
@@ -100,7 +98,7 @@ export default function PayrollScreen() {
     (r.employee?.name ?? "").toLowerCase().includes(search.toLowerCase()),
   );
 
-const totalSalary = records.reduce((sum, r) => sum + Number(r.netSalary), 0);
+  const totalSalary = records.reduce((sum, r) => sum + Number(r.netSalary), 0);
   const paidCount = records.filter((r) => r.status === "PAID").length;
   const pendingCount = records.filter((r) => r.status === "PENDING").length;
 
@@ -124,25 +122,6 @@ const totalSalary = records.reduce((sum, r) => sum + Number(r.netSalary), 0);
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title="Toggle theme"
-            style={{
-              background: c.cardBg,
-              border: `1px solid ${c.border}`,
-              color: c.textPrimary,
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
           <button
             onClick={() => setOpenModal(true)}
             style={{

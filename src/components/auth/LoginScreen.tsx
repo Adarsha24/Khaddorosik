@@ -7,8 +7,8 @@ type Stage = 'email' | 'password' | 'otp-sent'
 const S: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'var(--bg)',
-    backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(245,158,11,0.12) 0%, transparent 70%)',
+    background: 'transparent',
+    position: 'relative', zIndex: 1,
     fontFamily: 'inherit', padding: 20,
   },
   wrap: {
@@ -16,7 +16,7 @@ const S: Record<string, React.CSSProperties> = {
     animation: 'fadeUp 0.3s ease',
   },
   logo: {
-    textAlign: 'center', marginBottom: 32,
+    textAlign: 'center', marginBottom: 28,
   },
   logoIcon: {
     width: 64, height: 64, borderRadius: 20,
@@ -26,26 +26,28 @@ const S: Record<string, React.CSSProperties> = {
     boxShadow: '0 8px 24px rgba(245,158,11,0.35)',
   },
   logoTitle: { fontSize: 22, fontWeight: 800, color: 'var(--text1)', letterSpacing: '-0.5px' },
-  logoSub: { fontSize: 12, color: 'var(--text3)', marginTop: 4 },
+  logoSub: { fontSize: 13, color: 'var(--text2)', marginTop: 8 },
   card: {
-    background: 'var(--surface)',
+    background: 'rgba(20, 25, 48, 0.72)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
     border: '1px solid var(--border)',
     borderRadius: 20,
     padding: '32px 28px',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+    boxShadow: '0 24px 70px rgba(0,0,0,0.55)',
   },
   stageLabel: { fontSize: 15, fontWeight: 700, color: 'var(--text1)', marginBottom: 6 },
   stageSub: { fontSize: 12, color: 'var(--text3)', marginBottom: 24 },
   label: { fontSize: 11, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' },
   input: {
-    width: '100%', height: 44, borderRadius: 10, border: '1px solid var(--border2)',
+    width: '100%', height: 46, borderRadius: 12, border: '1px solid var(--border2)',
     padding: '0 14px', fontSize: 14, outline: 'none', boxSizing: 'border-box',
     background: 'var(--surface2)', color: 'var(--text1)', fontFamily: 'inherit',
     transition: 'border-color 0.15s',
   },
   btn: {
-    width: '100%', height: 46, borderRadius: 10,
-    background: 'var(--gold)', color: '#0B1120',
+    width: '100%', height: 48, borderRadius: 12,
+    background: 'var(--gold)', color: '#1a1204',
     border: 'none', fontWeight: 700, fontSize: 14,
     cursor: 'pointer', marginTop: 8, fontFamily: 'inherit',
     transition: 'background 0.15s, box-shadow 0.15s',
@@ -168,12 +170,13 @@ export default function LoginScreen() {
   }
 
   return (
-    <div style={S.page}>
+    <div className="login-page">
+      <div style={S.page}>
       <div style={S.wrap}>
         <div style={S.logo}>
-          <div style={S.logoIcon}>🍽️</div>
-          <div style={S.logoTitle}>Khaddorosik POS</div>
-          <div style={S.logoSub}>Restaurant Management System</div>
+          <div className="brand-mark" style={{ width: 60, height: 60, borderRadius: 19, fontSize: 34, margin: '0 auto 14px' }}>খ</div>
+          <div className="brand-word" style={{ fontSize: 26 }}>Khaddo<em>রসিক</em></div>
+          <div style={S.logoSub}>Every table. Every order. <span style={{ color: 'var(--gold)', fontWeight: 600 }}>In rhythm.</span></div>
         </div>
 
         <div style={S.card}>
@@ -236,7 +239,7 @@ export default function LoginScreen() {
                 onMouseOver={e => (e.currentTarget.style.background = 'var(--surface2)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
               >
-                {loading ? 'Sending OTP…' : '🔐 Sign in with Email OTP'}
+                {loading ? 'Sending OTP…' : 'Sign in with email OTP'}
               </button>
             </>
           )}
@@ -293,11 +296,12 @@ export default function LoginScreen() {
           )}
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--text4)' }}>
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--text3)' }}>
           © {new Date().getFullYear()} Khaddorosik POS · Secure multi-tenant restaurant management
         </div>
       </div>
 
+      </div>
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
         input[type=text]::-webkit-outer-spin-button,

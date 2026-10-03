@@ -17,10 +17,11 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'var(--bg)', flexDirection: 'column', gap: 16,
+        background: 'var(--bg)', flexDirection: 'column', gap: 18,
       }}>
-        <div style={{ fontSize: 36 }}>POS</div>
-        <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading Khaddorosik POS...</div>
+        <div className="brand-mark" style={{ width: 64, height: 64, borderRadius: 20, fontSize: 36, animation: 'pulse 1.6s ease-in-out infinite' }}>খ</div>
+        <div className="brand-word" style={{ fontSize: 20 }}>Khaddo<em>রসিক</em></div>
+        <div style={{ color: 'var(--text3)', fontSize: 12 }}>Getting your restaurant ready…</div>
       </div>
     )
   }
