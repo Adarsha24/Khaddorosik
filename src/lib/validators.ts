@@ -23,6 +23,7 @@ export const MenuItemSchema = z.object({
   categoryId: z.string().uuid(),
   name: z.string().min(1).max(200),
   price: z.number().positive(),
+  costPrice: z.number().min(0).optional(),
   veg: z.boolean().default(false),
   description: z.string().optional(),
   imageUrl: z.string().url().optional(),

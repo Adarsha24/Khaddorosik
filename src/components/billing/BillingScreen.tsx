@@ -11,14 +11,20 @@ import {
   Users,
   ShoppingCart,
   Pencil,
+  X,
 } from "lucide-react";
 import {
   menu,
   orders,
   kot,
+  discounts,
+  customers as customersApi,
+  restaurant as restaurantApi,
   type ApiMenuItem,
   type ApiCategory,
   type ApiKOT,
+  type ApiDiscountResult,
+  type ApiCustomer,
 } from "@/lib/api";
 import BillPrint from "@/components/billing/BillPrint";
 import KOTPrint from "@/components/billing/KOTPrint";
@@ -40,6 +46,7 @@ interface Props {
     cart: CartItem[],
     orderId?: string,
     contextLabel?: string,
+    total?: number,
   ) => void;
   onNavigate: (id: string) => void;
 }
@@ -83,6 +90,27 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   const [parcelLoading, setParcelLoading] = useState(false);
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
   const [showBillPrint, setShowBillPrint] = useState(false);
+  // Discount state. The server is the source of truth for the final amount;
+  // `appliedDiscount` is the validated preview from POST /discounts (action: apply).
+  const [appliedDiscount, setAppliedDiscount] =
+    useState<ApiDiscountResult | null>(null);
+  const [showDiscountPanel, setShowDiscountPanel] = useState(false);
+  const [discountInput, setDiscountInput] = useState("");
+  const [discountLoading, setDiscountLoading] = useState(false);
+  // Code currently stored on the server-side order ("" = none)
+  const [orderDiscountCode, setOrderDiscountCode] = useState("");
+  // Customer attached to this bill (null = walk-in)
+  const [customer, setCustomer] = useState<ApiCustomer | null>(null);
+  // Customer id currently saved on the server-side order ("" = none)
+  const [orderCustomerId, setOrderCustomerId] = useState("");
+  const [showCustomerPanel, setShowCustomerPanel] = useState(false);
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerResults, setCustomerResults] = useState<ApiCustomer[]>([]);
+  const [customerSearching, setCustomerSearching] = useState(false);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [taxRates, setTaxRates] = useState({ cgst: 0.025, sgst: 0.025 });
   const [restaurant, setRestaurant] = useState<{
     name: string;
     address?: string;
@@ -97,37 +125,39 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
     setFilter("all");
     setCart({});
     setOrderId(undefined);
+    setAppliedDiscount(null);
+    setOrderDiscountCode("");
+    setShowDiscountPanel(false);
+    setDiscountInput("");
+    setCustomer(null);
+    setOrderCustomerId("");
+    setShowCustomerPanel(false);
+    setShowNewCustomer(false);
+    setCustomerQuery("");
   }, [tableId, tableNo]);
 
-  // Fetch menu data on mount
-  // useEffect(() => {
-  //   menu.items({ limit: '200' }).then(res => setMenuItems(res.data)).catch(() => {});
-  //   menu.categories().then(setCategories).catch(() => {});
-  // }, []);
-
-  // region testing add
-
+  // Fetch menu data and tax rates on mount
   useEffect(() => {
-    console.log("BillingScreen mounted");
-
     menu
       .items({ limit: "200" })
-      .then((res) => {
-        console.log("Items loaded", res);
-        setMenuItems(res.data);
-      })
-      .catch((e) => console.error("Items error", e));
+      .then((res) => setMenuItems(res.data))
+      .catch(() => toast("Could not load menu items", "info"));
 
     menu
       .categories()
-      .then((res) => {
-        console.log("Categories loaded", res);
-        setCategories(res);
-      })
-      .catch((e) => console.error("Categories error", e));
-  }, []);
+      .then(setCategories)
+      .catch(() => toast("Could not load menu categories", "info"));
 
-  //endregion
+    restaurantApi
+      .get()
+      .then((r) => {
+        if (typeof r.cgstRate === "number" && typeof r.sgstRate === "number") {
+          setTaxRates({ cgst: r.cgstRate, sgst: r.sgstRate });
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch KOTs when switching to Running KOT tab
   useEffect(() => {
@@ -230,11 +260,139 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   const clearCart = () => {
     setCart({});
     setOrderId(undefined);
+    setAppliedDiscount(null);
+    setOrderDiscountCode("");
+    setShowDiscountPanel(false);
+    setDiscountInput("");
+    setCustomer(null);
+    setOrderCustomerId("");
+    setShowCustomerPanel(false);
+    setShowNewCustomer(false);
+    setCustomerQuery("");
+  };
+
+  // Debounced customer search (name / phone / email) while the picker is open
+  useEffect(() => {
+    if (!showCustomerPanel) return;
+    const q = customerQuery.trim();
+    let cancelled = false;
+    const t = setTimeout(
+      () => {
+        setCustomerSearching(true);
+        customersApi
+          .list({ limit: "6", ...(q ? { search: q } : {}) })
+          .then((res) => {
+            if (!cancelled) setCustomerResults(res.data);
+          })
+          .catch(() => {
+            if (!cancelled) setCustomerResults([]);
+          })
+          .finally(() => {
+            if (!cancelled) setCustomerSearching(false);
+          });
+      },
+      q ? 250 : 0,
+    );
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [customerQuery, showCustomerPanel]);
+
+  const pickCustomer = (c: ApiCustomer | null) => {
+    setCustomer(c);
+    setShowCustomerPanel(false);
+    setShowNewCustomer(false);
+    setCustomerQuery("");
+    // The order is synced with the server on KOT / payment (see createOrder).
+  };
+
+  const createAndPickCustomer = async () => {
+    const name = newCustName.trim();
+    const phone = newCustPhone.trim();
+    if (!name) {
+      toast("Customer name is required", "info");
+      return;
+    }
+    if (phone && !/^\d{10,15}$/.test(phone)) {
+      toast("Phone must be 10–15 digits", "info");
+      return;
+    }
+    try {
+      const created = await customersApi.create({
+        name,
+        phone: phone || undefined,
+      });
+      pickCustomer(created);
+      setNewCustName("");
+      setNewCustPhone("");
+      toast(`${created.name} added`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not add customer", "info");
+    }
+  };
+
+  const applyDiscountCode = async () => {
+    const code = discountInput.trim();
+    if (!code) return;
+    if (sub <= 0) {
+      toast("Add items before applying a discount", "info");
+      return;
+    }
+    setDiscountLoading(true);
+    try {
+      const result = await discounts.apply(code, sub);
+      setAppliedDiscount(result);
+      setShowDiscountPanel(false);
+      setDiscountInput("");
+      toast(`Discount ${result.code} applied`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Invalid discount code", "info");
+    } finally {
+      setDiscountLoading(false);
+    }
+  };
+
+  const removeDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountInput("");
+    setShowDiscountPanel(false);
+  };
+
+  const syncOrderCustomer = async (targetOrderId: string, nextCustomerId: string) => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const res = await fetch(`/api/orders/${targetOrderId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ customerId: nextCustomerId || null }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.message ?? data?.error ?? "Failed to update customer");
+    }
   };
 
   const createOrder = async () => {
     if (cartItems.length === 0) return;
-    if (orderId) return orderId;
+    const wantedCode = appliedDiscount?.code ?? "";
+    const wantedCustomerId = customer?.id ?? "";
+    if (orderId) {
+      // Order already exists: sync discount / customer if they changed since last save.
+      if (wantedCode !== orderDiscountCode) {
+        await orders.setDiscount(orderId, wantedCode);
+        setOrderDiscountCode(wantedCode);
+      }
+      if (wantedCustomerId !== orderCustomerId) {
+        await syncOrderCustomer(orderId, wantedCustomerId);
+        setOrderCustomerId(wantedCustomerId);
+      }
+      return orderId;
+    }
     const orderTypeMap: Record<string, string> = {
       "Dine In": "DINE_IN",
       Takeaway: "TAKEAWAY",
@@ -244,8 +402,12 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
       orderType: orderTypeMap[orderType] ?? "DINE_IN",
       tableId: orderType === "Dine In" ? tableId : undefined,
       items: cartItems.map((i) => ({ menuItemId: i.id, quantity: i.qty })),
+      discountCode: wantedCode || undefined,
+      customerId: wantedCustomerId || undefined,
     });
     setOrderId(order.id);
+    setOrderDiscountCode(order.discountCode ?? "");
+    setOrderCustomerId(wantedCustomerId);
     return order.id;
   };
 
@@ -276,7 +438,14 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
         toast("Create an order before payment", "info");
         return;
       }
-      onPayment(cartItems, nextOrderId, tableNo ? tableLabel : undefined);
+      // Use the server's total so the payment modal always matches what gets charged.
+      const saved = await orders.get(nextOrderId);
+      onPayment(
+        cartItems,
+        nextOrderId,
+        tableNo ? tableLabel : undefined,
+        Number(saved.total),
+      );
     } catch (e) {
       toast("Failed to create order for payment", "info");
     } finally {
@@ -285,12 +454,47 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
   };
 
   const cartItems = Object.values(cart);
+  // Mirrors the server's math (2-decimal rounding) so the preview matches the saved bill.
+  const r2 = (n: number) => parseFloat(n.toFixed(2));
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
   const sub = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
-  const disc = Math.round(sub * 0.05);
+  const disc = appliedDiscount ? Math.min(appliedDiscount.discountAmount, sub) : 0;
   const taxable = sub - disc;
-  const cgst = Math.round(taxable * 0.025);
-  const sgst = Math.round(taxable * 0.025);
-  const grand = taxable + cgst + sgst;
+  const cgst = r2(taxable * taxRates.cgst);
+  const sgst = r2(taxable * taxRates.sgst);
+  const grand = r2(taxable + cgst + sgst);
+  const pct = (rate: number) => parseFloat((rate * 100).toFixed(2));
+
+  // Re-validate the code whenever the subtotal changes (minimum order and
+  // percentage amounts both depend on it). Drop the code if it stops applying.
+  const appliedCode = appliedDiscount?.code;
+  useEffect(() => {
+    if (!appliedCode) return;
+    if (sub <= 0) {
+      setAppliedDiscount(null);
+      return;
+    }
+    let cancelled = false;
+    discounts
+      .apply(appliedCode, sub)
+      .then((r) => {
+        if (!cancelled) setAppliedDiscount(r);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setAppliedDiscount(null);
+        toast(
+          e instanceof Error
+            ? `Discount removed: ${e.message}`
+            : "Discount removed",
+          "info",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub, appliedCode]);
 
   const TABS = [
     { label: "New Order", badge: null },
@@ -1216,33 +1420,136 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
           ))}
         </div>
 
-        <div
-          className="flex items-center gap-2 px-3.5 py-2"
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] flex-shrink-0"
-            style={{ background: "var(--purple-bg)", color: "var(--purple)" }}
-          >
-            RK
-          </div>
-          <div className="flex-1 overflow-hidden">
+        <div style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2 px-3.5 py-2">
             <div
-              className="text-[12px] font-semibold truncate"
-              style={{ color: "var(--text1)" }}
+              className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] flex-shrink-0"
+              style={{
+                background: customer ? "var(--purple-bg)" : "var(--surface3)",
+                color: customer ? "var(--purple)" : "var(--text3)",
+              }}
             >
-              Rahul Khanna
+              {customer ? customer.name.charAt(0).toUpperCase() : "W"}
             </div>
-            <div className="text-[10px]" style={{ color: "var(--text3)" }}>
-              +91 98765 43210
+            <div className="flex-1 overflow-hidden">
+              <div
+                className="text-[12px] font-semibold truncate"
+                style={{ color: "var(--text1)" }}
+              >
+                {customer ? customer.name : "Walk-in customer"}
+              </div>
+              <div className="text-[10px]" style={{ color: "var(--text3)" }}>
+                {customer
+                  ? customer.phone || "No phone on file"
+                  : "No customer attached"}
+              </div>
             </div>
+            {customer && (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                style={{ background: "var(--green-bg)", color: "var(--green)" }}
+              >
+                {customer.loyaltyPoints} pts
+              </span>
+            )}
+            <button
+              onClick={() => setShowCustomerPanel((v) => !v)}
+              className="text-[11px] font-semibold cursor-pointer px-2 py-1 rounded-md"
+              style={{
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--text2)",
+              }}
+            >
+              {customer ? "Change" : "Add"}
+            </button>
+            {customer && (
+              <button
+                onClick={() => pickCustomer(null)}
+                title="Remove customer"
+                className="cursor-pointer"
+                style={{ background: "none", border: "none", color: "var(--text3)" }}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
-          <span
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-            style={{ background: "var(--green-bg)", color: "var(--green)" }}
-          >
-            240 pts
-          </span>
+
+          {showCustomerPanel && (
+            <div className="px-3.5 pb-2.5">
+              <input
+                value={customerQuery}
+                onChange={(e) => setCustomerQuery(e.target.value)}
+                placeholder="Search name, phone or email"
+                autoFocus
+                className="w-full rounded-lg px-2.5 py-2 text-[12px] outline-none"
+                style={{
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text1)",
+                }}
+              />
+              <div className="mt-1.5 max-h-40 overflow-y-auto">
+                {customerSearching && (
+                  <div className="text-[11px] py-1.5" style={{ color: "var(--text3)" }}>
+                    Searching…
+                  </div>
+                )}
+                {!customerSearching && customerResults.length === 0 && (
+                  <div className="text-[11px] py-1.5" style={{ color: "var(--text3)" }}>
+                    No customers found
+                  </div>
+                )}
+                {customerResults.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => pickCustomer(c)}
+                    className="w-full flex items-center justify-between text-left px-2 py-1.5 rounded-md cursor-pointer"
+                    style={{ background: "none", border: "none", color: "var(--text1)" }}
+                  >
+                    <span className="text-[12px] font-semibold truncate">{c.name}</span>
+                    <span className="text-[10px] ml-2 flex-shrink-0" style={{ color: "var(--text3)" }}>
+                      {c.phone ?? "—"} · {c.loyaltyPoints} pts
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {showNewCustomer ? (
+                <div className="flex gap-1.5 mt-1.5">
+                  <input
+                    value={newCustName}
+                    onChange={(e) => setNewCustName(e.target.value)}
+                    placeholder="Name"
+                    className="flex-1 min-w-0 rounded-lg px-2 py-1.5 text-[12px] outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text1)" }}
+                  />
+                  <input
+                    value={newCustPhone}
+                    onChange={(e) => setNewCustPhone(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Phone"
+                    inputMode="numeric"
+                    className="w-28 rounded-lg px-2 py-1.5 text-[12px] outline-none"
+                    style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text1)" }}
+                  />
+                  <button
+                    onClick={createAndPickCustomer}
+                    className="px-2.5 rounded-lg text-[12px] font-semibold cursor-pointer"
+                    style={{ background: "var(--primary)", color: "#fff", border: "none" }}
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewCustomer(true)}
+                  className="mt-1 text-[11px] font-semibold cursor-pointer"
+                  style={{ background: "none", border: "none", color: "var(--primary)" }}
+                >
+                  + New customer
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto py-1">
@@ -1321,44 +1628,6 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
                 </div>
               ))}
               <div
-                className="px-3.5 py-2"
-                style={{ borderTop: "1px solid var(--border)" }}
-              >
-                <div
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5"
-                  style={{ color: "var(--text3)" }}
-                >
-                  Running KOT
-                </div>
-                {[
-                  {
-                    label: "Paneer Tikka ×2",
-                    status: "Ready",
-                    bg: "var(--green-bg)",
-                    col: "var(--green)",
-                  },
-                  {
-                    label: "Dal Makhani ×1",
-                    status: "Prep",
-                    bg: "#fff4dc",
-                    col: "#c88716",
-                  },
-                ].map((k) => (
-                  <div
-                    key={k.label}
-                    className="flex items-center gap-1.5 text-[11px] mb-1"
-                  >
-                    <span
-                      className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase"
-                      style={{ background: k.bg, color: k.col }}
-                    >
-                      {k.status}
-                    </span>
-                    <span style={{ color: "var(--text2)" }}>{k.label}</span>
-                  </div>
-                ))}
-              </div>
-              <div
                 className="mx-3.5 my-1.5 rounded-lg px-2.5 py-2 flex items-center gap-1.5 cursor-pointer"
                 style={{
                   border: "1px dashed var(--border2)",
@@ -1378,14 +1647,26 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
             style={{ borderTop: "1px solid var(--border)" }}
           >
             {[
-              { label: "Subtotal", val: `₹${sub}`, color: "var(--text2)" },
+              { label: "Subtotal", val: `₹${fmt(sub)}`, color: "var(--text2)" },
+              ...(appliedDiscount && disc > 0
+                ? [
+                    {
+                      label: `🏷 Discount (${appliedDiscount.code})`,
+                      val: `−₹${fmt(disc)}`,
+                      color: "var(--green)",
+                    },
+                  ]
+                : []),
               {
-                label: "🏷 Loyalty Discount (5%)",
-                val: `−₹${disc}`,
-                color: "var(--green)",
+                label: `CGST (${pct(taxRates.cgst)}%)`,
+                val: `₹${fmt(cgst)}`,
+                color: "var(--text2)",
               },
-              { label: "CGST (2.5%)", val: `₹${cgst}`, color: "var(--text2)" },
-              { label: "SGST (2.5%)", val: `₹${sgst}`, color: "var(--text2)" },
+              {
+                label: `SGST (${pct(taxRates.sgst)}%)`,
+                val: `₹${fmt(sgst)}`,
+                color: "var(--text2)",
+              },
             ].map(({ label, val, color }) => (
               <div
                 key={label}
@@ -1404,16 +1685,25 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
               }}
             >
               <span>Grand Total</span>
-              <span style={{ color: "var(--primary, #f59e0b)" }}>₹{grand}</span>
+              <span style={{ color: "var(--primary, #f59e0b)" }}>₹{fmt(grand)}</span>
             </div>
-            <div className="mt-1.5">
-              <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                style={{ background: "var(--green-bg)", color: "var(--green)" }}
-              >
-                You save ₹{disc} 🎉
-              </span>
-            </div>
+            {disc > 0 && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: "var(--green-bg)", color: "var(--green)" }}
+                >
+                  You save ₹{fmt(disc)} 🎉
+                </span>
+                <button
+                  onClick={removeDiscount}
+                  className="text-[10px] cursor-pointer underline"
+                  style={{ color: "var(--text3)", background: "none", border: "none" }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1421,6 +1711,38 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
           className="px-3.5 pb-3.5 pt-2.5"
           style={{ borderTop: "1px solid var(--border)" }}
         >
+          {showDiscountPanel && (
+            <div className="flex gap-1.5 mb-2">
+              <input
+                value={discountInput}
+                onChange={(e) => setDiscountInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyDiscountCode();
+                }}
+                placeholder="Discount code"
+                autoFocus
+                className="flex-1 min-w-0 rounded-lg px-2.5 py-2 text-[12px] outline-none"
+                style={{
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text1)",
+                }}
+              />
+              <button
+                onClick={applyDiscountCode}
+                disabled={discountLoading || !discountInput.trim()}
+                className="px-3 rounded-lg text-[12px] font-semibold cursor-pointer"
+                style={{
+                  background: "var(--primary)",
+                  color: "#fff",
+                  border: "none",
+                  opacity: discountLoading || !discountInput.trim() ? 0.6 : 1,
+                }}
+              >
+                {discountLoading ? "…" : "Apply"}
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-4 gap-1.5 mb-2">
             {[
               {
@@ -1438,7 +1760,13 @@ export default function BillingScreen({ toast, onPayment, onNavigate }: Props) {
               {
                 label: "Discount",
                 Icon: Tag,
-                onClick: () => toast("Discount applied", "info"),
+                onClick: () => {
+                  if (cartItems.length === 0) {
+                    toast("Add items before applying a discount", "info");
+                    return;
+                  }
+                  setShowDiscountPanel((v) => !v);
+                },
                 green: false,
               },
               {

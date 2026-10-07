@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { authenticate } from '@/lib/middleware'
+import { authenticate, authenticateRoles } from '@/lib/middleware'
 import { CustomerSchema } from '@/lib/validators'
-import { ok, notFound, validationError, serverError } from '@/lib/response'
+import { ok, notFound, conflict, validationError, serverError } from '@/lib/response'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -48,6 +48,14 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const existing = await prisma.customer.findFirst({ where: { id, restaurantId: auth.restaurantId }, select: { id: true } })
     if (!existing) return notFound('Customer')
 
+    if (parsed.data.phone) {
+      const clash = await prisma.customer.findFirst({
+        where: { restaurantId: auth.restaurantId, phone: parsed.data.phone, NOT: { id: existing.id } },
+        select: { id: true },
+      })
+      if (clash) return conflict('Another customer already uses this phone number')
+    }
+
     const customer = await prisma.customer.update({ where: { id: existing.id }, data: parsed.data })
     return ok(customer)
   } catch (e) {
@@ -75,6 +83,34 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     return ok(customer)
   } catch (e) {
     console.error('[PATCH /api/customers/[id]]', e)
+    return serverError()
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  try {
+    const auth = await authenticateRoles(req, 'SUPER_ADMIN', 'MANAGER')
+    if (auth instanceof Response) return auth
+
+    const { id } = await params
+    const existing = await prisma.customer.findFirst({
+      where: { id, restaurantId: auth.restaurantId },
+      select: { id: true, _count: { select: { orders: true, reservations: true } } },
+    })
+    if (!existing) return notFound('Customer')
+
+    // Orders / reservations reference the customer, so deleting would orphan
+    // billing history (and the database blocks it anyway).
+    if (existing._count.orders > 0 || existing._count.reservations > 0) {
+      return conflict(
+        `Cannot delete: this customer has ${existing._count.orders} order(s) and ${existing._count.reservations} reservation(s)`,
+      )
+    }
+
+    await prisma.customer.delete({ where: { id: existing.id } })
+    return ok({ id: existing.id }, 'Customer deleted')
+  } catch (e) {
+    console.error('[DELETE /api/customers/[id]]', e)
     return serverError()
   }
 }

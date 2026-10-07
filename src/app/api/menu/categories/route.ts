@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate, authenticateRoles } from '@/lib/middleware'
-import { ok, created, validationError, serverError } from '@/lib/response'
+import { ok, created, conflict, validationError, serverError } from '@/lib/response'
 import { z } from 'zod'
 
 const CategorySchema = z.object({
@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
 
     const parsed = CategorySchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
+
+    const dup = await prisma.category.findFirst({
+      where: { restaurantId: auth.restaurantId, name: parsed.data.name },
+      select: { id: true },
+    })
+    if (dup) return conflict('A category with this name already exists')
 
     const category = await prisma.category.create({
       data: { ...parsed.data, restaurantId: auth.restaurantId },

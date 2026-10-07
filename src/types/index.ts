@@ -6,6 +6,7 @@ export type ScreenId =
   | 'reservation'
   | 'reports'
   | 'inventory'
+  | 'menu'
   | 'employees'
   | 'crm'
   | 'payroll'

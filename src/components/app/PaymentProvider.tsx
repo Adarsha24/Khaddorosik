@@ -7,7 +7,7 @@ import type { CartItem } from '@/types'
 import { useToast } from './ToastProvider'
 
 type PaymentContextValue = {
-  openPayment: (cart: CartItem[], orderId?: string, contextLabel?: string) => void
+  openPayment: (cart: CartItem[], orderId?: string, contextLabel?: string, total?: number) => void
 }
 
 const PaymentContext = createContext<PaymentContextValue | null>(null)
@@ -17,10 +17,12 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
   const [payCart, setPayCart] = useState<CartItem[]>([])
   const [payOrderId, setPayOrderId] = useState<string | undefined>()
   const [payContextLabel, setPayContextLabel] = useState<string | undefined>()
+  const [payTotal, setPayTotal] = useState<number | undefined>()
   const [payOpen, setPayOpen] = useState(false)
 
-  const openPayment = useCallback((cart: CartItem[], orderId?: string, contextLabel?: string) => {
+  const openPayment = useCallback((cart: CartItem[], orderId?: string, contextLabel?: string, total?: number) => {
     setPayCart(cart)
+    setPayTotal(total)
     setPayOrderId(orderId)
     setPayContextLabel(contextLabel)
     setPayOpen(true)
@@ -54,6 +56,7 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
       {payOpen && (
         <PaymentModal
           cart={payCart}
+          total={payTotal}
           onClose={() => setPayOpen(false)}
           onConfirm={confirmPayment}
           contextLabel={payContextLabel}

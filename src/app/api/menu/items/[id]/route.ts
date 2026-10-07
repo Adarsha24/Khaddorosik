@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate, authenticateRoles } from '@/lib/middleware'
 import { MenuItemSchema } from '@/lib/validators'
-import { ok, notFound, validationError, serverError } from '@/lib/response'
+import { ok, notFound, conflict, validationError, serverError } from '@/lib/response'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -34,6 +34,20 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
     const existing = await prisma.menuItem.findFirst({ where: { id, category: { restaurantId: auth.restaurantId } }, select: { id: true } })
     if (!existing) return notFound('Menu item')
+
+    // The target category must belong to this restaurant
+    const cat = await prisma.category.findFirst({
+      where: { id: parsed.data.categoryId, restaurantId: auth.restaurantId },
+      select: { id: true },
+    })
+    if (!cat) return validationError({ fieldErrors: { categoryId: ['Category not found'] }, formErrors: [] })
+
+    // (categoryId, name) is unique in the database
+    const clash = await prisma.menuItem.findFirst({
+      where: { categoryId: parsed.data.categoryId, name: parsed.data.name, NOT: { id: existing.id } },
+      select: { id: true },
+    })
+    if (clash) return conflict('An item with this name already exists in that category')
 
     const item = await prisma.menuItem.update({
       where: { id: existing.id },

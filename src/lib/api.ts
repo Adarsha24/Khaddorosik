@@ -96,16 +96,30 @@ export const auth = {
 
 // ─── Menu ─────────────────────────────────────────────────────────────────────
 
+// What the server accepts when creating / updating a menu item (numbers, not strings)
+export interface MenuItemInput {
+  categoryId: string; name: string; price: number; costPrice?: number; veg: boolean
+  description?: string; imageUrl?: string; available: boolean; bestSeller: boolean
+}
+
 export const menu = {
   categories: () => apiFetch<ApiCategory[]>('/menu/categories'),
   items: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params) : ''
     return apiFetch<{ data: ApiMenuItem[]; meta: ApiMeta }>(`/menu/items${qs}`)
   },
-  createItem: (data: Partial<ApiMenuItem> & { price: number; categoryId: string }) =>
+  createItem: (data: MenuItemInput) =>
     apiFetch<ApiMenuItem>('/menu/items', { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (id: string, data: MenuItemInput) =>
+    apiFetch<ApiMenuItem>(`/menu/items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   toggleAvailability: (id: string, available?: boolean) =>
     apiFetch(`/menu/items/${id}/availability`, { method: 'PATCH', body: JSON.stringify({ available }) }),
+  createCategory: (data: { name: string; displayOrder?: number }) =>
+    apiFetch<ApiCategory>('/menu/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: (id: string, data: { name: string; displayOrder?: number; active?: boolean }) =>
+    apiFetch<ApiCategory>(`/menu/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCategory: (id: string) =>
+    apiFetch<{ id: string }>(`/menu/categories/${id}`, { method: 'DELETE' }),
 }
 
 // ─── Tables ───────────────────────────────────────────────────────────────────
@@ -136,6 +150,12 @@ export const orders = {
   get: (id: string) => apiFetch<ApiOrder>(`/orders/${id}`),
   updateStatus: (id: string, status: string) =>
     apiFetch(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  // Pass "" to remove the discount from the order
+  setDiscount: (id: string, discountCode: string) =>
+    apiFetch<ApiOrder>(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ discountCode }) }),
+  // Pass null to detach the customer (walk-in)
+  setCustomer: (id: string, customerId: string | null) =>
+    apiFetch<ApiOrder>(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ customerId }) }),
   addItems: (id: string, items: { menuItemId: string; quantity: number; notes?: string }[]) =>
     apiFetch(`/orders/${id}/items`, { method: 'POST', body: JSON.stringify({ items }) }),
 }
@@ -212,6 +232,10 @@ export const customers = {
   },
   create: (data: unknown) =>
     apiFetch<ApiCustomer>('/customers', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: { name: string; phone?: string; email?: string }) =>
+    apiFetch<ApiCustomer>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    apiFetch<{ id: string }>(`/customers/${id}`, { method: 'DELETE' }),
 }
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
@@ -270,7 +294,7 @@ export const restaurant = {
   update: (data: unknown) => apiFetch<ApiRestaurant>('/restaurants', { method: 'PATCH', body: JSON.stringify(data) }),
 }
 
-// ─── Restaurant ───────────────────────────────────────────────────────────────
+// ─── Audit logs ───────────────────────────────────────────────────────────────
 
 export const auditLogs = {
   list: (params?: Record<string, string>) => {
@@ -320,7 +344,7 @@ export interface ApiOrder {
   tableId?: string; orderType: string; createdAt: string; notes?: string
   items?: ApiOrderItem[]
   payments?: ApiPayment[]
-  customer?: { id: string; name: string; phone?: string }
+  customer?: { id: string; name: string; phone?: string; loyaltyPoints?: number }
 }
 
 export interface ApiOrderItem {

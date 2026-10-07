@@ -6,6 +6,7 @@ import CRMScreen from '@/components/crm/CRMScreen'
 import DashboardScreen from '@/components/dashboard/DashboardScreen'
 import EmployeesScreen from '@/components/employee/EmployeeScreen'
 import InventoryScreen from '@/components/inventory/InventoryScreen'
+import MenuScreen from '@/components/menu/MenuScreen'
 import KitchenScreen from '@/components/kitchen/KitchenScreen'
 import ReportsScreen from '@/components/reports/ReportsScreen'
 import ReservationScreen from '@/components/reservation/ReservationScreen'
@@ -24,6 +25,7 @@ const ROUTES: Record<ScreenId, string> = {
   reservation: '/reservations',
   reports: '/reports',
   inventory: '/inventory',
+  menu: '/menu',
   employees: '/employees',
   payroll: '/payroll',
   crm: '/crm',
@@ -97,4 +99,9 @@ export function ShiftPage() {
 export function AuditLogPage() {
   const toast = useToast()
   return <AuditLogScreen toast={toast} />
+}
+
+export function MenuPage() {
+  const toast = useToast()
+  return <MenuScreen toast={toast} />
 }

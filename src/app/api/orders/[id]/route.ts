@@ -11,9 +11,12 @@ type Ctx = { params: Promise<{ id: string }> }
 const UpdateOrderSchema = z.object({
   status: z.enum(['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'PAID', 'CANCELLED']).optional(),
   discountCode: z.string().optional(),
-}).refine((data) => data.status !== undefined || data.discountCode !== undefined, {
-  message: 'Provide at least one of: status, discountCode',
-})
+  // null detaches the customer (walk-in)
+  customerId: z.string().uuid().nullable().optional(),
+}).refine(
+  (data) => data.status !== undefined || data.discountCode !== undefined || data.customerId !== undefined,
+  { message: 'Provide at least one of: status, discountCode, customerId' },
+)
 
 export async function GET(req: NextRequest, { params }: Ctx) {
   try {
@@ -48,13 +51,33 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const parsed = UpdateOrderSchema.safeParse(await req.json())
     if (!parsed.success) return validationError(parsed.error.flatten())
 
-    const { status, discountCode } = parsed.data
+    const { status, discountCode, customerId } = parsed.data
 
     const existing = await prisma.order.findFirst({
       where: { id, restaurantId: auth.restaurantId },
       include: { items: true },
     })
     if (!existing) return notFound('Order')
+
+    // ── Customer-only update (attach / detach a customer) ────────────────
+    if (customerId !== undefined && status === undefined && discountCode === undefined) {
+      if (existing.status === 'PAID' || existing.status === 'CANCELLED') {
+        return badRequest('Cannot change the customer on a paid or cancelled order')
+      }
+      if (customerId !== null) {
+        const customer = await prisma.customer.findFirst({
+          where: { id: customerId, restaurantId: auth.restaurantId },
+          select: { id: true },
+        })
+        if (!customer) return notFound('Customer')
+      }
+      const updated = await prisma.order.update({
+        where: { id },
+        data: { customerId },
+        include: { customer: { select: { id: true, name: true, phone: true, loyaltyPoints: true } } },
+      })
+      return ok(updated)
+    }
 
     // ── Status-only update ───────────────────────────────────────────────
     if (status !== undefined && discountCode === undefined) {

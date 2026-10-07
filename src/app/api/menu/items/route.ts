@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { authenticate, authenticateRoles } from '@/lib/middleware'
-import { ok, created, validationError, serverError, paginated } from '@/lib/response'
+import { ok, created, conflict, validationError, serverError, paginated } from '@/lib/response'
 import { z } from 'zod'
 
 const MenuItemSchema = z.object({
@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
       where: { id: parsed.data.categoryId, restaurantId: auth.restaurantId },
     })
     if (!cat) return validationError({ fieldErrors: { categoryId: ['Category not found'] }, formErrors: [] })
+
+    const clash = await prisma.menuItem.findFirst({
+      where: { categoryId: parsed.data.categoryId, name: parsed.data.name },
+      select: { id: true },
+    })
+    if (clash) return conflict('An item with this name already exists in this category')
 
     const item = await prisma.menuItem.create({
       data: parsed.data,

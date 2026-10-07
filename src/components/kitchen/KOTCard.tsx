@@ -93,8 +93,8 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
   const billLabel = kot.order?.billNo ? `#${String(kot.order.billNo).padStart(4, '0')}` : ''
 
   return (
-    <div style={{
-      width: 230, borderRadius: 12, overflow: 'hidden', flexShrink: 0,
+    <div className="kd-card" style={{
+      borderRadius: 12, overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
       border: `1.5px solid`,
       borderColor: kot.status === 'READY' ? '#10B981'
@@ -135,7 +135,7 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
 
       <div style={{ padding: '6px 0', flex: 1 }}>
         {items.map((item) => (
-          <div key={item.id} style={{
+          <div key={item.id} className="kd-item" style={{
             padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold)', minWidth: 22 }}>
@@ -159,6 +159,8 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
             {kot.status !== 'COMPLETED' && (
               <button
                 onClick={() => toggleItem(item)}
+                className="kd-check"
+                aria-label={item.done ? 'Mark not done' : 'Mark done'}
                 style={{
                   width: 20, height: 20, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
                   border: `1.5px solid ${item.done ? 'var(--green)' : 'var(--border2)'}`,
@@ -173,9 +175,9 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
         ))}
       </div>
 
-      <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
+      <div className="kd-actions" style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
         {kot.status === 'PENDING' && (
-          <button onClick={advance} disabled={busy} style={{
+          <button onClick={advance} disabled={busy} className="kd-action" style={{
             flex: 1, padding: '7px 0', borderRadius: 7, fontSize: 11, fontWeight: 700,
             cursor: 'pointer', border: 'none',
             background: allDone ? 'var(--blue)' : 'var(--surface2)',
@@ -185,7 +187,7 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
           </button>
         )}
         {kot.status === 'PREPARING' && (
-          <button onClick={advance} disabled={busy} style={{
+          <button onClick={advance} disabled={busy} className="kd-action" style={{
             flex: 1, padding: '7px 0', borderRadius: 7, fontSize: 11, fontWeight: 700,
             cursor: 'pointer', border: 'none',
             background: allDone ? 'var(--green)' : 'var(--surface2)',
@@ -195,7 +197,7 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
           </button>
         )}
         {kot.status === 'READY' && (
-          <button onClick={advance} disabled={busy} style={{
+          <button onClick={advance} disabled={busy} className="kd-action" style={{
             flex: 1, padding: '7px 0', borderRadius: 7, fontSize: 11, fontWeight: 700,
             cursor: 'pointer', border: 'none',
             background: 'var(--green)', color: '#fff',
@@ -204,7 +206,7 @@ export default function KOTCard({ kot, onStatusChange, onItemDone }: Props) {
           </button>
         )}
         {kot.status === 'COMPLETED' && (
-          <div style={{
+          <div className="kd-action" style={{
             flex: 1, padding: '7px 0', borderRadius: 7, fontSize: 11, fontWeight: 700,
             textAlign: 'center', color: 'var(--text3)', background: 'var(--surface2)',
           }}>

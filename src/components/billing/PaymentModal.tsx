@@ -29,12 +29,10 @@ export default function PaymentModal({ cart, total, open, onClose, onConfirm, co
 
   if (open === false) return null;
 
-  const cartTotal = cart.reduce((sum, item) => {
-    const subtotal = item.price * item.qty;
-    const discount = Math.round(subtotal * 0.05);
-    const taxable = subtotal - discount;
-    return sum + taxable + Math.round(taxable * 0.025) + Math.round(taxable * 0.025);
-  }, 0);
+  // Fallback only — callers should pass the server-calculated `total`.
+  // No discount is assumed here; discounts are applied server-side.
+  const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const cartTotal = parseFloat((cartSubtotal * 1.05).toFixed(2));
 
   const baseTotal = total ?? cartTotal;
 
