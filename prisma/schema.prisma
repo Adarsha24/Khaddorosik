@@ -172,6 +172,11 @@ model Order {
   restaurant     Restaurant    @relation(fields: [restaurantId], references: [id])
   tableSession   TableSession? @relation(fields: [tableSessionId], references: [id])
   payments       Payment[]
+  @@unique([restaurantId, billNo])
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, status])
+  @@index([tableSessionId])
+  @@index([customerId])
 
   @@map("orders")
 }
@@ -388,18 +393,21 @@ model Shift {
 
 model Payroll {
   id          String        @id @default(uuid())
-  employeeId  String
+  employeeId  String        @map("employee_id")
   month       Int
   year        Int
-  basicSalary Decimal       @db.Decimal(10, 2)   // was: Float
-  bonus       Decimal       @default(0) @db.Decimal(10, 2)   // was: Float
-  deduction   Decimal       @default(0) @db.Decimal(10, 2)   // was: Float
-  netSalary   Decimal       @db.Decimal(10, 2)   // was: Float
+  basicSalary Decimal       @map("basic_salary") @db.Decimal(10, 2)
+  bonus       Decimal       @default(0) @db.Decimal(10, 2)
+  deduction   Decimal       @default(0) @db.Decimal(10, 2)
+  netSalary   Decimal       @map("net_salary") @db.Decimal(10, 2)
   status      PayrollStatus @default(PENDING)
-  paidAt      DateTime?
+  paidAt      DateTime?     @map("paid_at")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
   employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month, year])
+  @@map("payrolls")
 }
 
 model AuditLog {
